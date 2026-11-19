@@ -68,13 +68,23 @@ fi
 DEPLOY=$(jq -r '.deploymentUID' "$resp")
 echo "deployment=$DEPLOY"
 
-# Poll until nothing is pending (bounded).
+# Poll until the deployment has both finished and recorded at least one outcome.
+# A fresh deployment record exists before its details are populated, so testing
+# `pending == 0` alone exits immediately and reports a false failure.
+sleep 3
+seen=0
 for _ in $(seq 1 40); do
   deployment=$(api "$BASE/instance-groups/deployments/$DEPLOY")
   pending=$(jq -r '(.details.pending // []) | length' <<<"$deployment")
-  [ "$pending" = "0" ] && break
+  finished=$(jq -r '((.details.success // []) | length) + ((.details.failure // []) | length)' <<<"$deployment")
+  if [ "$pending" = "0" ] && [ "$finished" -ge 1 ]; then seen=1; break; fi
   sleep 3
 done
+
+if [ "$seen" = "0" ]; then
+  echo "::error::timed out waiting for deployment $DEPLOY — no instance reported an outcome (are the members offline?)"
+  exit 1
+fi
 
 jq '{status, success: (.details.success|length), failure: (.details.failure|length), pending: (.details.pending|length), error: (.details.error // "")}' <<<"$deployment" | tee /tmp/deployment.json
 
