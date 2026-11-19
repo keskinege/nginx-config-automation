@@ -24,6 +24,17 @@ scripts/publish.sh     POST the tree to the instance group, poll the deployment
 `externalId` is the commit SHA, so NIM shows which revision each instance runs
 (`GET /api/platform/v1/instance-groups/{uid}` → `configVersion`).
 
+### Backup before every publish
+
+Before writing, the publish job snapshots the config **currently live on the instance group**
+into `backup/` — `group.json`, `group-config.json`, the decoded `etc/nginx` tree, and a
+`manifest.txt` carrying the group's `externalId` and `updateTime` — and uploads it as the
+artifact `nim-group-config-backup-<run_id>` (90-day retention). It is read from NIM, so it is
+what the instances are actually running, not what this repo says.
+
+To roll back, download the artifact and publish its decoded tree with the normal
+`scripts/publish.sh` flow (point `config/` at `backup/etc/nginx`).
+
 ## Repository configuration
 
 Variables (Settings → Variables):
