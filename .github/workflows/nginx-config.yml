@@ -2,10 +2,10 @@ name: nginx-config
 
 on:
   pull_request:
-    paths: ["config/**", "scripts/**", ".github/workflows/**"]
+    paths: ["groups/**", "scripts/**", ".github/workflows/**"]
   push:
     branches: [main]
-    paths: ["config/**", "scripts/**", ".github/workflows/**"]
+    paths: ["groups/**", "scripts/**", ".github/workflows/**"]
   workflow_dispatch:
 
 permissions:
@@ -22,44 +22,82 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: lint invariants
+      - name: lint every group
         run: ./scripts/lint.sh
 
-      - name: nginx -t (OSS; Plus-only block stripped)
+      - name: nginx -t for every group (OSS; Plus block stripped)
         run: ./scripts/nginx-test.sh
 
-  publish:
-    name: publish to instance group
-    # PRs never publish; merge to main (or a manual run) does.
+  changed:
+    name: detect changed groups
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: lint
     runs-on: ubuntu-latest
-    environment: nim
+    outputs:
+      groups: ${{ steps.detect.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: back up the config currently live on the instance group
+      - id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ] || [ -z "$BEFORE" ] || \
+             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            g=$(ls -d groups/*/ | xargs -n1 basename)
+          else
+            g=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | cut -d/ -f2 | sort -u)
+          fi
+          [ -z "$g" ] && g="-"
+          json=$(printf '%s\n' $g | jq -R . | jq -cs .)
+          echo "groups=$json" >> "$GITHUB_OUTPUT"
+          echo "groups to publish: $json"
+
+  publish:
+    name: publish ${{ matrix.group }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [lint, changed]
+    runs-on: ubuntu-latest
+    environment: nim
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        group: ${{ fromJSON(needs.changed.outputs.groups) }}
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.group != '-'
+
+      - name: back up the config currently live on the group
+        if: matrix.group != '-'
         env:
           NIM_URL: ${{ vars.NIM_URL }}
-          NIM_GROUP: ${{ vars.NIM_INSTANCE_GROUP }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          GROUP: ${{ matrix.group }}
+          OUT_DIR: backup/${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
         run: ./scripts/backup-config.sh
 
       - name: upload backup artifact
+        if: matrix.group != '-'
         uses: actions/upload-artifact@v4
         with:
-          name: nim-group-config-backup-${{ github.run_id }}
-          path: backup/
+          name: nim-group-config-backup-${{ matrix.group }}-${{ github.run_id }}
+          path: backup/${{ matrix.group }}
           retention-days: 90
           if-no-files-found: error
 
-      - name: publish config tree with externalId = commit sha
+      - name: publish group tree with externalId = commit sha
+        if: matrix.group != '-'
         env:
           NIM_URL: ${{ vars.NIM_URL }}
-          NIM_GROUP: ${{ vars.NIM_INSTANCE_GROUP }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          GROUP: ${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
         run: ./scripts/publish.sh
