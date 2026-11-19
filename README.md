@@ -51,7 +51,7 @@ artifact (90 days) → `POST` the tree → wait for the deployment → fail on a
 
 ## Repository configuration
 
-Variables: `NIM_URL` (`https://<nim-host>`).
+Variables: `NIM_URL` (the NIM's public address; it is repo configuration, not source).
 Secrets: `NIM_USER`, `NIM_PASSWORD`.
 
 The NIM is reached on its public IP because GitHub-hosted runners are not on the tailnet;
