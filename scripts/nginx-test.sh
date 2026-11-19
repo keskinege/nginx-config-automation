@@ -1,27 +1,41 @@
 #!/usr/bin/env bash
-# Validate the tree with a real `nginx -t` using the OSS image.
+# Validate every group tree with a real `nginx -t` using the OSS image.
 #
-# The tree is Plus-flavoured (`mgmt { ... }`), which OSS nginx rejects, so the
-# block is stripped for this check only. Everything else — includes, server
-# blocks, syntax — is validated exactly as published. NIM runs its own analyzer
-# on publish, which is what finally validates the Plus-specific parts.
-#
-# The tree is streamed in as a tar rather than bind-mounted, so this works on
-# macOS/Docker Desktop (where /tmp is not a shared path) as well as on runners.
+# The trees are Plus-flavoured (`mgmt { ... }`), which OSS nginx rejects, so that
+# block is stripped for this check only. Includes that point OUTSIDE /etc/nginx
+# (per-instance TLS at /etc/nginx-tls, projected in from a Secret) are stubbed so
+# syntax can be checked; their content is owned by the cluster, not this repo.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 IMAGE="${NGINX_TEST_IMAGE:-nginx:1.27-alpine}"
+rc=0
 
-tar -cf - -C config . | docker run --rm -i "$IMAGE" sh -euc '
-  mkdir -p /src && tar -xf - -C /src
-  # The image ships conf.d/default.conf on :80; this repo owns the :80 server.
-  rm -f /etc/nginx/conf.d/default.conf
-  cp -a /src/. /etc/nginx/
-  # Plus-only block, not understood by OSS nginx.
-  sed -i "/^mgmt[[:space:]]*{/,/^}/d" /etc/nginx/nginx.conf
-  echo "--- included files ---"
-  nginx -T 2>&1 | grep -E "^# configuration file" || true
-  echo "--- nginx -t ---"
-  nginx -t
-'
+for gdir in groups/*/; do
+  g=$(basename "$gdir")
+  echo "=== $g ==="
+  if ! tar -cf - -C "$gdir" . | docker run --rm -i "$IMAGE" sh -euc '
+    mkdir -p /src && tar -xf - -C /src
+    rm -f /etc/nginx/conf.d/default.conf
+    cp -a /src/. /etc/nginx/
+    sed -i "/^mgmt[[:space:]]*{/,/^}/d" /etc/nginx/nginx.conf
+    # Plus-only directives OSS nginx does not know. Commented for the syntax
+    # check only; NIM runs its analyzer over the Plus-specific parts on publish.
+    sed -i -E "s/^([[:space:]]*)(api[[:space:]].*)$/\\1# \\2/" /etc/nginx/conf.d/*.conf
+    # Stub includes that live outside the managed tree.
+    grep -rhoE "^[[:space:]]*include[[:space:]]+[^;*]+;" /etc/nginx 2>/dev/null \
+      | sed -E "s/^[[:space:]]*include[[:space:]]+//; s/;$//" \
+      | while read -r inc; do
+          case "$inc" in
+            /etc/nginx/*) ;;
+            *) mkdir -p "$(dirname "$inc")"; [ -e "$inc" ] || : > "$inc"; echo "stubbed $inc";;
+          esac
+        done
+    nginx -t
+  '; then
+    echo "::error::nginx -t failed for group $g"
+    rc=1
+  fi
+done
+
+exit "$rc"
