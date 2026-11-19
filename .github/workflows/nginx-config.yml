@@ -38,6 +38,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: back up the config currently live on the instance group
+        env:
+          NIM_URL: ${{ vars.NIM_URL }}
+          NIM_GROUP: ${{ vars.NIM_INSTANCE_GROUP }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          EXTERNAL_ID: ${{ github.sha }}
+        run: ./scripts/backup-config.sh
+
+      - name: upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nim-group-config-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90
+          if-no-files-found: error
+
       - name: publish config tree with externalId = commit sha
         env:
           NIM_URL: ${{ vars.NIM_URL }}
