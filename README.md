@@ -43,7 +43,11 @@ Secrets (Settings → Secrets):
 The NIM is reached on its public IP because GitHub-hosted runners are not on the tailnet;
 `ovh-fr.tail7fa79.ts.net` resolves to a `100.x` address they cannot route. TLS uses the
 internal `manager-server` certificate, so the scripts call curl with `-k`.
-**Rotate `NIM_PASSWORD` to a dedicated service account before using this outside the lab.**
+
+`NIM_USER`/`NIM_PASSWORD` are the NIM admin credentials by design (this NIM exposes no
+scoped service account). That makes **repo write access equivalent to NIM admin**: anyone who
+can edit a workflow can read the secrets, so keep the repo private and its collaborator list
+tight.
 
 ## Run it locally
 
