@@ -21,7 +21,16 @@ fi
 
 OUT_DIR="${OUT_DIR:-backup/$GROUP}"
 BASE="${NIM_URL%/}/api/platform/v1"
-api() { curl -sk -m 30 -u "$NIM_USER:$NIM_PASSWORD" "$@"; }
+api() {
+  local attempt rc
+  for attempt in 1 2 3; do
+    if curl -sk -m 30 -u "$NIM_USER:$NIM_PASSWORD" "$@"; then return 0; fi
+    rc=$?
+    if [ "$attempt" -eq 3 ]; then return "$rc"; fi
+    echo "api: attempt $attempt failed (curl $rc); retrying in $((attempt * 5))s" >&2
+    sleep $((attempt * 5))
+  done
+}
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
