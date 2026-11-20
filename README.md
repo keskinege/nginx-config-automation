@@ -51,8 +51,8 @@ artifact (90 days) → `POST` the tree → wait for the deployment → fail on a
 
 ## Repository configuration
 
-Variables: `NIM_URL` (the NIM's public address; it is repo configuration, not source).
-Secrets: `NIM_USER`, `NIM_PASSWORD`.
+Secrets: `NIM_URL` (the NIM address — kept in a secret, not a variable, because repository
+variables are readable by pull requests from forks in a public repo), `NIM_USER`, `NIM_PASSWORD`.
 
 The NIM is reached on its public IP because GitHub-hosted runners are not on the tailnet;
 `nim-mgmt-endpoint.invalid` resolves to a `100.x` address they cannot route. TLS uses the internal
