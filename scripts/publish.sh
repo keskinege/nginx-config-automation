@@ -24,7 +24,16 @@ fi
 
 EXTERNAL_ID="${EXTERNAL_ID:-$(git rev-parse HEAD 2>/dev/null || echo manual)}"
 BASE="${NIM_URL%/}/api/platform/v1"
-api() { curl -sk -m 30 -u "$NIM_USER:$NIM_PASSWORD" "$@"; }
+api() {
+  local attempt rc
+  for attempt in 1 2 3; do
+    if curl -sk -m 30 -u "$NIM_USER:$NIM_PASSWORD" "$@"; then return 0; fi
+    rc=$?
+    if [ "$attempt" -eq 3 ]; then return "$rc"; fi
+    echo "api: attempt $attempt failed (curl $rc); retrying in $((attempt * 5))s" >&2
+    sleep $((attempt * 5))
+  done
+}
 
 group_doc=$(api "$BASE/instance-groups")
 GROUP_UID=$(jq -r --arg n "$GROUP" '.items[]? | select(.name==$n) | .uid' <<<"$group_doc" | head -1)
