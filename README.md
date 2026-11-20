@@ -1,4 +1,4 @@
-# plus-docker-nginx-config
+# nginx-config-automation
 
 Git source of truth for the `/etc/nginx` trees published to **several** NGINX Instance
 Manager instance groups at once. One directory per group:
