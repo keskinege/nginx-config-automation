@@ -1,0 +1,8 @@
+{
+  "nginx-base": {
+    "uid": "942a6e96-fcfe-4f87-ad58-545abab7996b"
+  },
+  "site-docker": {
+    "uid": "ce97bf28-21f9-40d2-a8bf-1964eff90bbb"
+  }
+}

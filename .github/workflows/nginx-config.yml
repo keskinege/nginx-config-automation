@@ -2,18 +2,28 @@ name: nginx-config
 
 on:
   pull_request:
-    paths: ["groups/**", "scripts/**", ".github/workflows/**"]
+    paths:
+      - "groups/**"
+      - "scripts/**"
+      - "tests/**"
+      - "templates/**"
+      - "requirements-dev.txt"
+      - "pytest.ini"
+      - ".github/workflows/**"
   push:
     branches: [main]
-    paths: ["groups/**", "scripts/**", ".github/workflows/**"]
+    paths:
+      - "groups/**"
+      - "scripts/**"
+      - "tests/**"
+      - "templates/**"
+      - "requirements-dev.txt"
+      - "pytest.ini"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: nginx-config-publish
-  cancel-in-progress: false
 
 jobs:
   lint:
@@ -22,14 +32,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: lint every group
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: pytest
+        run: pytest -q
+
+      - name: lint every static group
         run: ./scripts/lint.sh
 
-      - name: nginx -t for every group (OSS; Plus block stripped)
+      - name: nginx -t for every static group (OSS; Plus block stripped)
         run: ./scripts/nginx-test.sh
 
+      - name: actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+
   changed:
-    name: detect changed groups
+    name: detect changed static groups
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
@@ -38,6 +69,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
       - id: detect
         env:
@@ -48,14 +85,19 @@ jobs:
           set -euo pipefail
           if [ "$EVENT" = workflow_dispatch ] || [ -z "$BEFORE" ] || \
              [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            g=$(ls -d groups/*/ | xargs -n1 basename)
+            g=$(./scripts/list-groups.sh static)
           else
-            g=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | cut -d/ -f2 | sort -u)
+            changed=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | cut -d/ -f2 | sort -u)
+            # shellcheck disable=SC2086
+            g=$(for d in $changed; do
+                  mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
+                  [ "$mode" = static ] && echo "$d"
+                done)
           fi
           [ -z "$g" ] && g="-"
-          json=$(printf '%s\n' $g | jq -R . | jq -cs .)
+          json=$(printf '%s\n' "$g" | jq -R . | jq -cs .)
           echo "groups=$json" >> "$GITHUB_OUTPUT"
-          echo "groups to publish: $json"
+          echo "static groups to publish: $json"
 
   publish:
     name: publish ${{ matrix.group }}
@@ -63,6 +105,9 @@ jobs:
     needs: [lint, changed]
     runs-on: ubuntu-latest
     environment: nim
+    concurrency:
+      group: nim-group-${{ matrix.group }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       max-parallel: 1

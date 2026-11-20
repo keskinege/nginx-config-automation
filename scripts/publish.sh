@@ -15,10 +15,10 @@ set -euo pipefail
 : "${GROUP:?set GROUP (the group directory name)}"
 
 cd "$(dirname "$0")/.."
-CONFIG_DIR="groups/$GROUP"
+CONFIG_DIR="${CONFIG_DIR:-groups/$GROUP}"
 ROOT_DIR="${ROOT_DIR:-/etc/nginx}"
 if [ ! -d "$CONFIG_DIR" ]; then
-  echo "::error::no such group directory: $CONFIG_DIR"
+  echo "::error::no such config directory: $CONFIG_DIR"
   exit 1
 fi
 
@@ -50,11 +50,12 @@ python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" > /tmp/payload
 import base64, json, os, sys
 config_dir, root, update_time, external_id = sys.argv[1:5]
 files = []
+EXCLUDED = {"group.yaml", "inputs.yaml", "render-manifest.txt", ".DS_Store"}
 for dirpath, _, names in os.walk(config_dir):
     for name in names:
         full = os.path.join(dirpath, name)
         rel = os.path.relpath(full, config_dir).replace(os.sep, "/")
-        if rel == "group.yaml":
+        if rel in EXCLUDED or name.startswith(".") or name.endswith(".lock.json"):
             continue
         files.append({
             "name": f"{root}/{rel}",
@@ -72,6 +73,12 @@ PY
 
 echo "group=$GROUP ($GROUP_UID) members=$MEMBERS files=$(jq '.configFiles.files|length' /tmp/payload.json) externalId=$EXTERNAL_ID"
 jq -r '.configFiles.files[].name' /tmp/payload.json | sed 's/^/  /'
+
+if [ "${DRY_RUN:-0}" = "1" ]; then
+  echo "publish: group=$GROUP config_dir=$CONFIG_DIR files=$(jq '.configFiles.files|length' /tmp/payload.json) externalId=$EXTERNAL_ID (dry run)"
+  jq -r '.configFiles.files[].name' /tmp/payload.json | sed 's/^/  /'
+  exit 0
+fi
 
 resp=$(mktemp)
 code=$(api -o "$resp" -w '%{http_code}' -X POST \

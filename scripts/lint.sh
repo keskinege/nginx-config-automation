@@ -8,8 +8,17 @@ cd "$(dirname "$0")/.."
 rc=0
 shopt -s nullglob
 
+if compgen -G "groups/*/inputs.yaml" >/dev/null; then
+  python3 scripts/lint-inputs.py groups/*/inputs.yaml || rc=1
+fi
+
 for gdir in groups/*/; do
   g=$(basename "$gdir")
+  mode=$(yq -r '.deploy_mode // "static"' "$gdir/group.yaml" 2>/dev/null || echo static)
+  if [ "$mode" = template ]; then
+    echo "lint: $g skipped (template)"
+    continue
+  fi
 
   if [ ! -f "$gdir/nginx.conf" ]; then
     echo "::error file=$gdir::missing nginx.conf"

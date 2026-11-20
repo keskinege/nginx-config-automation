@@ -1,0 +1,15 @@
+{
+  "docker-plus-cluster": {
+    "bytes": 6678,
+    "crc32": "612ff1ea",
+    "files": 3,
+    "inputs": "groups/docker-plus-cluster/inputs.yaml",
+    "request_sha256": "d49a7527ed33b6dda677cdc3530b33cd361a6617c72a1299f0fb7bccf0f157dd",
+    "sha256": "84f50b3160293d3c54d90efcf24aadab8e3dcea1d5c63d83a19dd6a9f6bcfb84",
+    "templates": {
+      "nginx-base": "942a6e96-fcfe-4f87-ad58-545abab7996b",
+      "site-docker": "ce97bf28-21f9-40d2-a8bf-1964eff90bbb"
+    },
+    "updatedAt": "2026-11-20T16:38:56Z"
+  }
+}

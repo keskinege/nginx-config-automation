@@ -1,0 +1,185 @@
+name: nginx-template
+
+on:
+  pull_request:
+    paths:
+      - "templates/**"
+      - "groups/**/inputs.yaml"
+      - "groups/**/group.yaml"
+      - ".nim/**"
+      - "scripts/render.sh"
+      - "scripts/tree_hash.py"
+      - "scripts/nginx-test-dir.sh"
+      - "scripts/publish.sh"
+      - "scripts/lint-inputs.py"
+      - "scripts/list-groups.sh"
+      - "tests/**"
+      - "requirements-dev.txt"
+      - "pytest.ini"
+      - ".github/workflows/nginx-template.yml"
+  push:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "groups/**/inputs.yaml"
+      - "groups/**/group.yaml"
+      - ".nim/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate template groups
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: lint inputs
+        run: ./scripts/lint.sh
+
+      - name: pytest
+        run: pytest -q
+
+      - name: compose every template-mode group
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: |
+          for g in $(./scripts/list-groups.sh template); do
+            GROUP="$g" OUT_DIR="rendered/$g" DRY_RUN=1 ./scripts/render.sh
+            GROUP="$g" CHECK_HASH=1 HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
+          done
+
+  changed:
+    name: detect changed template groups
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.detect.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ] || [ -z "$BEFORE" ] || \
+             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            g=$(./scripts/list-groups.sh template)
+          else
+            if git diff --name-only "$BEFORE" "$SHA" | grep -qE '^(templates/|\.nim/)'; then
+              g=$(./scripts/list-groups.sh template)
+            else
+              changed=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | \
+                sed -n 's#^groups/\([^/]*\)/.*#\1#p' | sort -u)
+              # shellcheck disable=SC2086
+            g=$(for d in $changed; do
+                    mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
+                    [ "$mode" = template ] && echo "$d"
+                  done)
+            fi
+          fi
+          [ -z "$g" ] && g="-"
+          json=$(printf '%s\n' "$g" | jq -R . | jq -cs .)
+          echo "groups=$json" >> "$GITHUB_OUTPUT"
+          echo "template groups to publish: $json"
+
+  publish:
+    name: publish ${{ matrix.group }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: changed
+    runs-on: ubuntu-latest
+    environment: nim
+    concurrency:
+      group: nim-group-${{ matrix.group }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        group: ${{ fromJSON(needs.changed.outputs.groups) }}
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.group != '-'
+
+      - name: install yq
+        if: matrix.group != '-'
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: back up the config currently live on the group
+        if: matrix.group != '-'
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          GROUP: ${{ matrix.group }}
+          OUT_DIR: backup/${{ matrix.group }}
+          EXTERNAL_ID: ${{ github.sha }}
+        run: ./scripts/backup-config.sh
+
+      - name: upload backup artifact
+        if: matrix.group != '-'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nim-group-config-backup-${{ matrix.group }}-${{ github.run_id }}
+          path: backup/${{ matrix.group }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: render from templates
+        if: matrix.group != '-'
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          GROUP: ${{ matrix.group }}
+          OUT_DIR: rendered/${{ matrix.group }}
+          WRITE_HASH: "1"
+          HASH_FILE: .nim/rendered.lock.json
+        run: ./scripts/render.sh
+
+      - name: nginx -t on the rendered tree
+        if: matrix.group != '-'
+        run: ./scripts/nginx-test-dir.sh "rendered/${{ matrix.group }}"
+
+      - name: publish with externalId = commit sha
+        if: matrix.group != '-'
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          GROUP: ${{ matrix.group }}
+          CONFIG_DIR: rendered/${{ matrix.group }}
+          EXTERNAL_ID: ${{ github.sha }}
+        run: ./scripts/publish.sh

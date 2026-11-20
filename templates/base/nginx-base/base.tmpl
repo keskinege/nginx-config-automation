@@ -1,0 +1,39 @@
+{{ $input := . }}
+{{ $baseData := .Data.V1 }}
+{{ $main := $baseData.main.templateInput }}
+{{ $http := $baseData.http.templateInput }}
+
+{{ $workerConnections := default 1024 $main.worker_connections }}
+{{ $keepalive := default 65 $main.keepalive_timeout }}
+{{ $mgmtEndpoint := default "ovh-fr.tail7fa79.ts.net" $main.mgmt_endpoint }}
+{{ $accessLog := default "/var/log/nginx/access.log" $http.access_log }}
+
+user  nginx;
+worker_processes  auto;
+error_log  /var/log/nginx/error.log notice;
+pid        /var/run/nginx.pid;
+
+events { worker_connections {{ $workerConnections }}; }
+
+{{ $input.ExecTemplateAugments "main" }}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    access_log    {{ $accessLog }};
+    sendfile      on;
+    keepalive_timeout {{ $keepalive }};
+
+    include /etc/nginx/conf.d/*.conf;
+    {{ if $main.include_tls }}include /etc/nginx-tls/server.conf;{{ end }}
+
+    {{ $input.ExecTemplateAugments "http" }}
+}
+
+{{ if $main.require_mgmt }}
+mgmt {
+    usage_report endpoint={{ $mgmtEndpoint }};
+    enforce_initial_report off;
+    ssl_verify off;
+}
+{{ end }}
