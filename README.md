@@ -192,6 +192,10 @@ DRY_RUN=1 ./scripts/publish.sh
   the payload is deleted on the members. After the docker migration the managed set is
   `nginx.conf`, `mime.types`, and `augments/http/<uid>.conf`; the old `conf.d/site.conf` is
   removed. The image-shipped `conf.d/plus-api.conf` is left alone.
+- **Static trees must be self-contained.** Every explicit `include /etc/nginx/<path>;` must
+  exist in the tree. The retained docker static tree includes `mime.types` for rollback; without
+  it, rolling back after a template publish deletes the template-managed `mime.types` and
+  `nginx -t` fails.
 - **Only online members receive a publish.** A reconnecting instance is synced to the last
   successful group publish.
 - **`status: successful` is not enough.** NIM reports success if *any* online member applied it;

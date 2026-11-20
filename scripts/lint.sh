@@ -49,6 +49,19 @@ for gdir in groups/*/; do
     rc=1
   fi
 
+  # Explicit includes under /etc/nginx must exist in the tree. This catches
+  # static trees that silently rely on an image-provided file (e.g. mime.types)
+  # and would break a rollback after a template publish manages that file.
+  while IFS= read -r inc; do
+    [ -n "$inc" ] || continue
+    rel=${inc#/etc/nginx/}
+    if [ ! -f "$gdir/$rel" ]; then
+      echo "::error file=${gdir%/}/nginx.conf::include $inc is not present in the group tree"
+      rc=1
+    fi
+  done < <(grep -rhoE '^[[:space:]]*include[[:space:]]+/etc/nginx/[^;*]+;' "$gdir/nginx.conf" \
+    | sed -E 's/^[[:space:]]*include[[:space:]]+//; s/;$//')
+
   require_mgmt=$(sed -n 's/^require_mgmt:[[:space:]]*//p' "$gdir/group.yaml" 2>/dev/null | head -1)
   if [ "$require_mgmt" = "true" ] && ! grep -qE '^mgmt[[:space:]]*\{' "$gdir/nginx.conf"; then
     echo "::error file=$gdir/nginx.conf::must keep the mgmt { usage_report ... } block (main context)"

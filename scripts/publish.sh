@@ -23,6 +23,7 @@ if [ ! -d "$CONFIG_DIR" ]; then
 fi
 
 EXTERNAL_ID="${EXTERNAL_ID:-$(git rev-parse HEAD 2>/dev/null || echo manual)}"
+EXTERNAL_ID_TYPE="${EXTERNAL_ID_TYPE:-git}"
 BASE="${NIM_URL%/}/api/platform/v1"
 api() {
   local attempt rc
@@ -46,9 +47,9 @@ MEMBERS=$(jq -r --arg n "$GROUP" '[.items[]? | select(.name==$n) | (.instances /
 UPDATE_TIME=$(api "$BASE/instance-groups/$GROUP_UID/config" | jq -r '.updateTime // .createTime')
 [ -n "$UPDATE_TIME" ] && [ "$UPDATE_TIME" != "null" ] || { echo "::error::could not read group config updateTime"; exit 1; }
 
-python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" > /tmp/payload.json <<'PY'
+python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$EXTERNAL_ID_TYPE" > /tmp/payload.json <<'PY'
 import base64, json, os, sys
-config_dir, root, update_time, external_id = sys.argv[1:5]
+config_dir, root, update_time, external_id, external_id_type = sys.argv[1:6]
 files = []
 EXCLUDED = {"group.yaml", "inputs.yaml", "render-manifest.txt", ".DS_Store"}
 for dirpath, _, names in os.walk(config_dir):
@@ -67,7 +68,7 @@ print(json.dumps({
     "configFiles": {"rootDir": root, "files": files},
     "auxFiles": {"rootDir": "/", "files": []},
     "externalId": external_id,
-    "externalIdType": "git",
+    "externalIdType": external_id_type,
 }))
 PY
 
