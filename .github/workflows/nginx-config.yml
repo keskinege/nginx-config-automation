@@ -75,7 +75,7 @@ jobs:
       - name: back up the config currently live on the group
         if: matrix.group != '-'
         env:
-          NIM_URL: ${{ vars.NIM_URL }}
+          NIM_URL: ${{ secrets.NIM_URL }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           GROUP: ${{ matrix.group }}
@@ -95,7 +95,7 @@ jobs:
       - name: publish group tree with externalId = commit sha
         if: matrix.group != '-'
         env:
-          NIM_URL: ${{ vars.NIM_URL }}
+          NIM_URL: ${{ secrets.NIM_URL }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           GROUP: ${{ matrix.group }}
