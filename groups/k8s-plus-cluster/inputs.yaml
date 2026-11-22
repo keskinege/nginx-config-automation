@@ -12,5 +12,3 @@ baseData:
 augmentData:
   - templateName: site-k8s
     action: new
-  - templateName: plus-api
-    action: new
