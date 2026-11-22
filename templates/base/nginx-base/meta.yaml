@@ -1,0 +1,15 @@
+name: nginx-base
+type: base
+state: draft
+description: Base NGINX config for nginx-config-automation instance groups.
+files:
+  - source: base.tmpl
+  - source: main.json
+  - source: http.json
+  - source: http-server.json
+  - source: http-upstream.json
+  - source: location.json
+  - source: stream.json
+  - source: README.md
+  - source: aux/etc/nginx/mime.types
+    target: /etc/nginx/mime.types
