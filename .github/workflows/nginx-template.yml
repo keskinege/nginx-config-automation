@@ -223,4 +223,5 @@ jobs:
           GROUP: ${{ matrix.group }}
           CONFIG_DIR: rendered/${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
+          PRESERVE_AUX: "1"
         run: ./scripts/publish.sh

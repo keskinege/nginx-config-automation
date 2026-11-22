@@ -39,7 +39,16 @@ def _is_excluded(rel: str, name: str, patterns: tuple[str, ...]) -> bool:
     return False
 
 
-def hash_files(files: dict[str, bytes]) -> dict[str, object]:
+def _strip_template_tags(data: bytes) -> bytes:
+    if b"__templateTag=" not in data:
+        return data
+    return b"".join(
+        line for line in data.splitlines(keepends=True)
+        if b"__templateTag=" not in line
+    )
+
+
+def hash_files(files: dict[str, bytes], strip_template_tags: bool = False) -> dict[str, object]:
     """Hash a mapping of POSIX relative path -> bytes."""
     sha = hashlib.sha256()
     sha.update(PREFIX)
@@ -48,6 +57,8 @@ def hash_files(files: dict[str, bytes]) -> dict[str, object]:
 
     for name in sorted(files):
         data = files[name]
+        if strip_template_tags:
+            data = _strip_template_tags(data)
         encoded = name.encode("utf-8")
         for chunk in (
             len(encoded).to_bytes(8, "big"),
@@ -67,13 +78,17 @@ def hash_files(files: dict[str, bytes]) -> dict[str, object]:
     }
 
 
-def hash_tree(root: str | pathlib.Path, excludes: tuple[str, ...] = ()) -> dict[str, object]:
+def hash_tree(
+    root: str | pathlib.Path,
+    excludes: tuple[str, ...] = (),
+    strip_template_tags: bool = False,
+) -> dict[str, object]:
     base = pathlib.Path(root)
     if not base.exists():
         raise SystemExit(f"no such path: {base}")
 
     if base.is_file():
-        return hash_files({base.name: base.read_bytes()})
+        return hash_files({base.name: base.read_bytes()}, strip_template_tags)
 
     files: dict[str, bytes] = {}
     for dirpath, dirnames, filenames in os.walk(base):
@@ -87,7 +102,7 @@ def hash_tree(root: str | pathlib.Path, excludes: tuple[str, ...] = ()) -> dict[
                 continue
             files[rel] = path.read_bytes()
 
-    return hash_files(files)
+    return hash_files(files, strip_template_tags)
 
 
 def main() -> int:
@@ -100,9 +115,14 @@ def main() -> int:
         help="Glob or exact name to skip; repeatable (e.g. group.yaml).",
     )
     parser.add_argument("--json", action="store_true", help="Emit a JSON object.")
+    parser.add_argument(
+        "--strip-template-tags",
+        action="store_true",
+        help="Ignore generated `# __templateTag=...` comments when hashing.",
+    )
     args = parser.parse_args()
 
-    info = hash_tree(args.path, tuple(args.exclude))
+    info = hash_tree(args.path, tuple(args.exclude), args.strip_template_tags)
     if args.json:
         print(json.dumps(info, sort_keys=True))
     else:

@@ -145,4 +145,5 @@ jobs:
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           GROUP: ${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
+          PRESERVE_AUX: "1"
         run: ./scripts/publish.sh

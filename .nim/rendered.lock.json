@@ -1,15 +1,29 @@
 {
   "docker-plus-cluster": {
-    "bytes": 6678,
-    "crc32": "612ff1ea",
+    "bytes": 6472,
+    "crc32": "c7a2700d",
     "files": 3,
     "inputs": "groups/docker-plus-cluster/inputs.yaml",
     "request_sha256": "d49a7527ed33b6dda677cdc3530b33cd361a6617c72a1299f0fb7bccf0f157dd",
-    "sha256": "84f50b3160293d3c54d90efcf24aadab8e3dcea1d5c63d83a19dd6a9f6bcfb84",
+    "sha256": "ef0a7322f9e584c38784bd5e30dbffe6d361c46bf81d2874184e78b8d89f174b",
     "templates": {
       "nginx-base": "942a6e96-fcfe-4f87-ad58-545abab7996b",
       "site-docker": "ce97bf28-21f9-40d2-a8bf-1964eff90bbb"
     },
-    "updatedAt": "2026-11-20T16:38:56Z"
+    "updatedAt": "2026-11-22T17:25:08Z"
+  },
+  "k8s-plus-cluster": {
+    "bytes": 6511,
+    "crc32": "082310c8",
+    "files": 4,
+    "inputs": "groups/k8s-plus-cluster/inputs.yaml",
+    "request_sha256": "704689c39f2374ec8c96b27bae50e27e9e0bb75c3380fccb6d6749912fe1748e",
+    "sha256": "23481f9427481825f8fc3efd291e842e717bcc092cdb246433478068e6d99f13",
+    "templates": {
+      "nginx-base": "942a6e96-fcfe-4f87-ad58-545abab7996b",
+      "plus-api": "7f5acf1b-a385-4934-aa95-23be54112596",
+      "site-k8s": "18d90853-ea70-4636-9e94-daa8ce73a2b3"
+    },
+    "updatedAt": "2026-11-22T17:25:09Z"
   }
 }

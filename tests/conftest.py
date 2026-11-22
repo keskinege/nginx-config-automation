@@ -93,7 +93,16 @@ def make_handler(state: MockNIM):
             elif self.path == "/api/platform/v1/instance-groups":
                 self._send(200, {"items": [{"name": "test-group", "uid": "group-1"}]})
             elif self.path == "/api/platform/v1/instance-groups/group-1/config":
-                self._send(200, {"updateTime": "2026-01-01T00:00:00Z"})
+                self._send(200, {
+                    "updateTime": "2026-01-01T00:00:00Z",
+                    "auxFiles": {
+                        "rootDir": "/etc/nginx",
+                        "files": [{
+                            "name": "/etc/nginx/tls/tls.crt",
+                            "contents": b64("cert"),
+                        }],
+                    },
+                })
             else:
                 self._send(404, {"message": "not found"})
 

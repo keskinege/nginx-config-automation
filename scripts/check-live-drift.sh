@@ -70,7 +70,7 @@ for section in ("configFiles", "auxFiles"):
 print(f"live files: {sum(1 for p in out.rglob('*') if p.is_file())}")
 PY
 
-live=$(python3 scripts/tree_hash.py "$tmp/tree" | awk -F= '/^sha256=/{print $2}')
+live=$(python3 scripts/tree_hash.py "$tmp/tree" --strip-template-tags | awk -F= '/^sha256=/{print $2}')
 if ! expected=$(python3 - "$HASH_FILE" "$GROUP" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])

@@ -18,7 +18,7 @@ tar -cf - -C "$DIR" . | docker run --rm -i "$IMAGE" sh -euc '
   sed -i "/^mgmt[[:space:]]*{/,/^}/d" /etc/nginx/nginx.conf
   # Plus-only directives OSS nginx does not know. Commented for the syntax
   # check only; NIM runs its analyzer over the Plus-specific parts on publish.
-  sed -i -E "s/^([[:space:]]*)(api[[:space:]].*)$/\\1# \\2/" /etc/nginx/nginx.conf /etc/nginx/conf.d/*.conf 2>/dev/null || true
+  sed -i -E "s/^([[:space:]]*)(api[[:space:]].*)$/\\1# \\2/" /etc/nginx/nginx.conf /etc/nginx/conf.d/*.conf /etc/nginx/augments/http/*.conf 2>/dev/null || true
   # Stub includes that live outside the managed tree.
   grep -rhoE "^[[:space:]]*include[[:space:]]+[^;*]+;" /etc/nginx 2>/dev/null \
     | sed -E "s/^[[:space:]]*include[[:space:]]+//; s/;$//" \

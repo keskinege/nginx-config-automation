@@ -8,8 +8,9 @@ groups. A group is deployed in one of two modes:
 | `static` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `scripts/publish.sh` |
 
-Currently `docker-plus-cluster` is template-managed and `k8s-plus-cluster` is static. The
-per-group `deploy_mode` in `group.yaml` decides which workflow may publish it: exactly one.
+Currently both instance groups are template-managed. Their last static trees are retained in
+`groups/` as the tested rollback source. The per-group `deploy_mode` in `group.yaml` decides
+which workflow may publish it: exactly one.
 
 ## Layout
 
@@ -30,10 +31,11 @@ groups/
   docker-plus-cluster/         # template-managed
     group.yaml                 # name, require_mgmt, deploy_mode: template
     inputs.yaml                # baseData + augmentData
-  k8s-plus-cluster/            # static (not migrated)
-    group.yaml                 # deploy_mode: static
+  k8s-plus-cluster/            # template-managed; static tree retained for rollback
+    group.yaml                 # deploy_mode: template
+    inputs.yaml
     nginx.conf
-    conf.d/plus-api.conf
+    conf.d/plus-api.conf       # rollback copy; removed on template publish
     mime.types
 .nim/
   templates.lock.json          # template name -> uid
@@ -195,6 +197,9 @@ GROUP=docker-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
 `render.sh` hashes the **whole rendered tree** — every file recursively, including every
 `conf.d/*.conf`, `augments/**`, and aux file. The recipe is `nginx-config-tree-v1`: sorted POSIX
 paths, length-prefixed path and bytes. `render-manifest.txt` and lock files are excluded.
+Generated `# __templateTag=...` comments are ignored (`--strip-template-tags`) because NIM may
+name a different augment in that comment between otherwise identical composes; this keeps the
+digest stable.
 
 Hash any tree directly:
 
@@ -209,12 +214,18 @@ rendered diff and `nginx -t`.
 
 ## Publishing a rendered tree
 
-`publish.sh` accepts `CONFIG_DIR` (default `groups/<group>`) and `DRY_RUN=1`. It excludes
-`group.yaml`, `inputs.yaml`, `render-manifest.txt`, dotfiles, and `*.lock.json`.
+`publish.sh` accepts `CONFIG_DIR` (default `groups/<group>`), `DRY_RUN=1`, and
+`PRESERVE_AUX=1`. It excludes `group.yaml`, `inputs.yaml`, `render-manifest.txt`, dotfiles, and
+`*.lock.json`.
+
+`PRESERVE_AUX=1` carries the current group's `auxFiles` forward unchanged. This is how
+`/etc/nginx/tls/tls.crt` survives the k8s cutover; aux files are outside the Git-declarative
+set. Both workflows set it.
 
 ```bash
 GROUP=docker-plus-cluster \
 CONFIG_DIR=rendered/docker-plus-cluster \
+PRESERVE_AUX=1 \
 NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
 DRY_RUN=1 ./scripts/publish.sh
 ```
@@ -222,12 +233,15 @@ DRY_RUN=1 ./scripts/publish.sh
 ## Semantics you must know
 
 - **Per-group managed set.** A publish is declarative over the group's tree; a file omitted from
-  the payload is deleted on the members. After the docker migration the managed set is
-  `nginx.conf`, `mime.types`, and `augments/http/<uid>.conf`; the old `conf.d/site.conf` is
-  removed. The image-shipped `conf.d/plus-api.conf` is left alone.
+  the payload is deleted on the members. After the migrations:
+  - `docker-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-docker>.conf`;
+    the old `conf.d/site.conf` is removed.
+  - `k8s-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-k8s>.conf`,
+    `augments/http/<plus-api>.conf`; the old `conf.d/plus-api.conf` is removed.
+  - `/etc/nginx/tls/tls.crt` on k8s is preserved as an **aux** file with `PRESERVE_AUX=1`.
 - **Static trees must be self-contained.** Every explicit `include /etc/nginx/<path>;` must
-  exist in the tree. The retained docker static tree includes `mime.types` for rollback; without
-  it, rolling back after a template publish deletes the template-managed `mime.types` and
+  exist in the tree. The retained static trees include `mime.types` for rollback; without it,
+  rolling back after a template publish deletes the template-managed `mime.types` and
   `nginx -t` fails.
 - **Only online members receive a publish.** A reconnecting instance is synced to the last
   successful group publish.

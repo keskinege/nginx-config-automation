@@ -30,3 +30,11 @@ def test_exclude_skips_manifest(tmp_path):
     (tmp_path / "render-manifest.txt").write_text("ignored\n")
     info = hash_tree(tmp_path)
     assert info["files"] == 1
+
+
+def test_template_tags_do_not_change_hash_when_stripped():
+    first = {"nginx.conf": b"events {}\n# __templateTag={\"uid\":\"a\"}\n"}
+    second = {"nginx.conf": b"events {}\n# __templateTag={\"uid\":\"b\"}\n"}
+    assert hash_files(first, strip_template_tags=True)["sha256"] == \
+        hash_files(second, strip_template_tags=True)["sha256"]
+    assert hash_files(first)["sha256"] != hash_files(second)["sha256"]

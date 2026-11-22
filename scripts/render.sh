@@ -248,7 +248,7 @@ for section in ("configFiles", "auxFiles"):
             raise SystemExit(f"duplicate config path with different contents: {rel}")
         files[rel] = data
 
-info = hash_files(files)
+info = hash_files(files, strip_template_tags=True)
 body_digest = hashlib.sha256(pathlib.Path(body_path).read_bytes()).hexdigest()
 resolved = json.loads(pathlib.Path(resolved_path).read_text())
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
