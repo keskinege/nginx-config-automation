@@ -48,6 +48,10 @@ class MockNIM:
         self.aux_files = [
             {"name": "mime.types", "contents": b64("types {}\n")},
         ]
+        self.systems = [
+            {"hostname": "plus-k8s-1", "status": {"state": "online"}},
+            {"hostname": "plus-k8s-2", "status": {"state": "online"}},
+        ]
 
     def compose_response(self) -> dict:
         return {
@@ -92,6 +96,8 @@ def make_handler(state: MockNIM):
                 self._send(200, {"items": state.templates, "count": len(state.templates)})
             elif self.path == "/api/platform/v1/instance-groups":
                 self._send(200, {"items": [{"name": "test-group", "uid": "group-1"}]})
+            elif self.path == "/api/platform/v1/systems":
+                self._send(200, {"items": state.systems})
             elif self.path == "/api/platform/v1/instance-groups/group-1/config":
                 self._send(200, {
                     "updateTime": "2026-01-01T00:00:00Z",

@@ -57,6 +57,7 @@ scripts/
   render.sh                    compose a group from NIM templates + inputs
   sync_templates.py            create/update NIM templates from templates/
   check-live-drift.sh          compare live NIM config to the rendered hash
+  check-nim-agents.sh          fail if any NIM system is offline
   tree_hash.py                 canonical SHA-256 / CRC32 of a config tree
   publish.sh                   publish a tree with externalId
   list-groups.sh               list groups by deploy_mode
@@ -155,8 +156,9 @@ NIM_URL=… python3 scripts/sync_templates.py --all --dry-run
 
 The template workflow runs `--check` before compose/publish, so a template change must be
 applied to NIM before it can be merged and deployed. A weekly scheduled job runs
-`scripts/check-live-drift.sh` for every template-mode group and fails if the live NIM config
-differs from `.nim/rendered.lock.json`.
+`scripts/check-live-drift.sh` for every template-mode group and
+`scripts/check-nim-agents.sh` for all NIM systems, and fails if the live config differs or any
+agent is offline.
 
 ## Run it locally
 
@@ -204,6 +206,13 @@ GROUP=docker-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
 
 `check-live-drift.sh` compares **configFiles only**; preserved aux files (such as
 `/etc/nginx/tls/tls.crt`) are outside the Git-declarative set and are ignored.
+
+Check agent status:
+
+```bash
+NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/check-nim-agents.sh
+# 0 all online, 1 no systems, 2 one or more offline
+```
 
 `render.sh` hashes the **whole rendered tree** — every file recursively, including every
 `conf.d/*.conf`, `augments/**`, and aux file. The recipe is `nginx-config-tree-v1`: sorted POSIX

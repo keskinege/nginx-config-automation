@@ -100,6 +100,13 @@ jobs:
             GROUP="$g" ./scripts/check-live-drift.sh
           done
 
+      - name: check NIM agents are online
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: ./scripts/check-nim-agents.sh
+
   changed:
     name: detect changed template groups
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
