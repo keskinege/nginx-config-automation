@@ -1,3 +1,4 @@
+# Retained for the template deploy path; inactive while deploy_mode: static.
 baseData:
   templateName: nginx-base
   main:
