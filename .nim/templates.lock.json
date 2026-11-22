@@ -20,13 +20,6 @@
     },
     "uid": "7f5acf1b-a385-4934-aa95-23be54112596"
   },
-  "site-docker": {
-    "files": {
-      "http.json": "21e53d385be05a1fd42fcb02fc99117ea1b40cd117a5b4381d08b1597c37eaa2",
-      "http.tmpl": "6161c06c82b79c51027ab786c162cdd43c651e5b0f17ffc9f19bb795d9c8ea7a"
-    },
-    "uid": "ce97bf28-21f9-40d2-a8bf-1964eff90bbb"
-  },
   "site-k8s": {
     "files": {
       "http.json": "369c62c642715db394cb47e102e8f8323a8214109b7a04d01251e43001c8cf9d",
