@@ -1,0 +1,37 @@
+{
+  "nginx-base": {
+    "files": {
+      "/etc/nginx/mime.types": "6f95d1d7d75e3c072907d845622a69d23110d1266c16ff122b3109b8b21f3ae9",
+      "README.md": "d1e5bb522e1afd82170a570e52e8f3c33f56ac4761b488246e8d97db99b86cab",
+      "base.tmpl": "36c138eb8e807f2c60b40e5718e721d5b8e7af3b1359b460d6183e414414d341",
+      "http-server.json": "b9259ef54924b727160ae1e6874da0d7066f460f8deeae4f1c301bd8c2df68fd",
+      "http-upstream.json": "37b86dcd9355bf2cff1e7187174b176517ac95a6d99862ad90a3fa1ac20f6918",
+      "http.json": "c14972f9f6173e411c41b4ac09432044f2c0e1cdad162245305c3c37699a5736",
+      "location.json": "1615a5495d7d7d8e8cfde626969c55b254d43a248b1dbe0c550d06fae82dceb7",
+      "main.json": "cdf935398402956cfe99ac8ad6ad80a26122557bd8aabf69395f23b8be853104",
+      "stream.json": "dd719110a3e3dcbd63e0c9be4c7f191b74ba3b6e2d1bff2ac08ee98536e19571"
+    },
+    "uid": "942a6e96-fcfe-4f87-ad58-545abab7996b"
+  },
+  "plus-api": {
+    "files": {
+      "http.json": "d074b477fbc046bc113920978061f1e8353d75b4d6f765dbf659c3acbb2cdb23",
+      "http.tmpl": "4bd4268a2a4f398ade5590cfe4c7a43525ca0f8138586bf68cef8d90af40393c"
+    },
+    "uid": "7f5acf1b-a385-4934-aa95-23be54112596"
+  },
+  "site-docker": {
+    "files": {
+      "http.json": "21e53d385be05a1fd42fcb02fc99117ea1b40cd117a5b4381d08b1597c37eaa2",
+      "http.tmpl": "6161c06c82b79c51027ab786c162cdd43c651e5b0f17ffc9f19bb795d9c8ea7a"
+    },
+    "uid": "ce97bf28-21f9-40d2-a8bf-1964eff90bbb"
+  },
+  "site-k8s": {
+    "files": {
+      "http.json": "369c62c642715db394cb47e102e8f8323a8214109b7a04d01251e43001c8cf9d",
+      "http.tmpl": "29c0847596b31af78567fd62d42135ab353c09dd07f22055fbda8f6d88f6063b"
+    },
+    "uid": "18d90853-ea70-4636-9e94-daa8ce73a2b3"
+  }
+}

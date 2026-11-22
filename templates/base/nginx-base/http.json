@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HTTP inputs",
+  "type": "object",
+  "properties": {
+    "templateInput": {
+      "type": ["object", "null"],
+      "properties": {
+        "access_log": {
+          "title": "Access log",
+          "type": "string",
+          "examples": ["/var/log/nginx/access.log"]
+        }
+      },
+      "required": []
+    }
+  },
+  "required": []
+}

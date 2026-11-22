@@ -8,8 +8,17 @@ cd "$(dirname "$0")/.."
 rc=0
 shopt -s nullglob
 
+if compgen -G "groups/*/inputs.yaml" >/dev/null; then
+  python3 scripts/lint-inputs.py groups/*/inputs.yaml || rc=1
+fi
+
 for gdir in groups/*/; do
   g=$(basename "$gdir")
+  mode=$(yq -r '.deploy_mode // "static"' "$gdir/group.yaml" 2>/dev/null || echo static)
+  if [ "$mode" = template ]; then
+    echo "lint: $g skipped (template)"
+    continue
+  fi
 
   if [ ! -f "$gdir/nginx.conf" ]; then
     echo "::error file=$gdir::missing nginx.conf"
@@ -39,6 +48,19 @@ for gdir in groups/*/; do
     echo "::error file=$gdir/nginx.conf::must include /etc/nginx/conf.d/*.conf"
     rc=1
   fi
+
+  # Explicit includes under /etc/nginx must exist in the tree. This catches
+  # static trees that silently rely on an image-provided file (e.g. mime.types)
+  # and would break a rollback after a template publish manages that file.
+  while IFS= read -r inc; do
+    [ -n "$inc" ] || continue
+    rel=${inc#/etc/nginx/}
+    if [ ! -f "$gdir/$rel" ]; then
+      echo "::error file=${gdir%/}/nginx.conf::include $inc is not present in the group tree"
+      rc=1
+    fi
+  done < <(grep -rhoE '^[[:space:]]*include[[:space:]]+/etc/nginx/[^;*]+;' "$gdir/nginx.conf" \
+    | sed -E 's/^[[:space:]]*include[[:space:]]+//; s/;$//')
 
   require_mgmt=$(sed -n 's/^require_mgmt:[[:space:]]*//p' "$gdir/group.yaml" 2>/dev/null | head -1)
   if [ "$require_mgmt" = "true" ] && ! grep -qE '^mgmt[[:space:]]*\{' "$gdir/nginx.conf"; then
