@@ -1,0 +1,7 @@
+name: site-k8s
+type: augment
+state: draft
+description: K8s group default HTTP server.
+files:
+  - source: http.tmpl
+  - source: http.json

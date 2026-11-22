@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Main inputs",
+  "type": "object",
+  "properties": {
+    "templateInput": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "worker_connections": {
+          "title": "Worker connections",
+          "type": "string",
+          "examples": [
+            "2048"
+          ]
+        },
+        "keepalive_timeout": {
+          "title": "Keepalive timeout",
+          "type": "string",
+          "examples": [
+            "65"
+          ]
+        },
+        "require_mgmt": {
+          "title": "Require mgmt block",
+          "type": "boolean",
+          "examples": [
+            true
+          ]
+        },
+        "mgmt_endpoint": {
+          "title": "Mgmt endpoint",
+          "type": "string",
+          "examples": [
+            "nim-mgmt-endpoint.invalid"
+          ]
+        },
+        "include_tls": {
+          "title": "Include TLS server block",
+          "type": "boolean",
+          "examples": [
+            false
+          ]
+        }
+      },
+      "required": [
+        "require_mgmt"
+      ]
+    }
+  },
+  "required": []
+}
