@@ -24,10 +24,6 @@ templates/
     README.md
     aux/etc/nginx/mime.types   # shipped as /etc/nginx/mime.types
   augments/
-    site-docker/
-      meta.yaml
-      http.tmpl
-      http.json
     site-k8s/
       meta.yaml
       http.tmpl
@@ -39,7 +35,6 @@ templates/
 groups/
   docker-plus-cluster/         # classic/static
     group.yaml                 # deploy_mode: static
-    inputs.yaml                # retained for the template path; inactive
     nginx.conf
     conf.d/site.conf
     mime.types
@@ -98,7 +93,7 @@ Both publish paths:
    over the managed set, so a file you omit is deleted on the members.
 
    **Template:** add `inputs.yaml` and reference templates from `templates/`. See
-   `groups/docker-plus-cluster/inputs.yaml` and `templates/base/nginx-base/`.
+   `groups/k8s-plus-cluster/inputs.yaml` and `templates/base/nginx-base/`.
 
 4. Open a PR. Merging publishes only the groups owned by the matching workflow.
 
@@ -115,7 +110,8 @@ otherwise `render.sh` composes the old NIM template and the hash does not change
 - `mime.types` is shipped as an aux file at `/etc/nginx/mime.types`.
 
 Augments are composed into `/etc/nginx/augments/http/<template-uid>.conf` and included from
-`nginx.conf`. `site-docker` supplies the docker group's default server.
+`nginx.conf`. `site-k8s` supplies the k8s group's default server; the classic docker group uses
+`conf.d/site.conf`.
 
 `groups/<group>/inputs.yaml` carries values, not file blobs:
 
@@ -124,15 +120,15 @@ baseData:
   templateName: nginx-base
   main:
     templateInput:
-      worker_connections: "2048"
+      worker_connections: "1024"
       require_mgmt: true
       mgmt_endpoint: ovh-fr.tail7fa79.ts.net
-      include_tls: false
+      include_tls: true
   http:
     templateInput:
       access_log: /var/log/nginx/access.log
 augmentData:
-  - templateName: site-docker
+  - templateName: site-k8s
     action: new
 ```
 
@@ -173,7 +169,7 @@ python3 -m venv .venv
 
 ./scripts/lint.sh
 ./scripts/nginx-test.sh                                  # static groups; needs docker
-./scripts/nginx-test-dir.sh rendered/docker-plus-cluster # one tree
+./scripts/nginx-test-dir.sh groups/docker-plus-cluster # classic tree
 
 GROUP=docker-plus-cluster \
 NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
@@ -182,29 +178,29 @@ NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
 ### Render from templates
 
 ```bash
-GROUP=docker-plus-cluster \
+GROUP=k8s-plus-cluster \
 NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… \
-OUT_DIR=rendered/docker-plus-cluster \
+OUT_DIR=rendered/k8s-plus-cluster \
 WRITE_HASH=1 HASH_FILE=.nim/rendered.lock.json \
 ./scripts/render.sh
 
 # compose and print the file list, write nothing
-DRY_RUN=1 GROUP=docker-plus-cluster … ./scripts/render.sh
+DRY_RUN=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
 
 # compare with the last recorded render (2 = changed, 3 = no record)
-CHECK_HASH=1 GROUP=docker-plus-cluster … ./scripts/render.sh
+CHECK_HASH=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
 
 # hash only
-HASH_ONLY=1 GROUP=docker-plus-cluster … ./scripts/render.sh
+HASH_ONLY=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
 
 # assert an exact hash
-EXPECTED_SHA256=<sha256> GROUP=docker-plus-cluster … ./scripts/render.sh
+EXPECTED_SHA256=<sha256> GROUP=k8s-plus-cluster … ./scripts/render.sh
 ```
 
 Check the live NIM config against the recorded hash:
 
 ```bash
-GROUP=docker-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
+GROUP=k8s-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
   ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
 ```
 
@@ -228,9 +224,9 @@ digest stable.
 Hash any tree directly:
 
 ```bash
-python3 scripts/tree_hash.py rendered/docker-plus-cluster
+python3 scripts/tree_hash.py rendered/k8s-plus-cluster
 python3 scripts/tree_hash.py groups/docker-plus-cluster \
-  --exclude group.yaml --exclude inputs.yaml
+  --exclude group.yaml
 ```
 
 A hash change is a byte change, not a semantic one: comments and ordering count. Pair it with a
@@ -247,8 +243,8 @@ rendered diff and `nginx -t`.
 set. Both workflows set it.
 
 ```bash
-GROUP=docker-plus-cluster \
-CONFIG_DIR=rendered/docker-plus-cluster \
+GROUP=k8s-plus-cluster \
+CONFIG_DIR=rendered/k8s-plus-cluster \
 PRESERVE_AUX=1 \
 NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
 DRY_RUN=1 ./scripts/publish.sh
@@ -259,8 +255,7 @@ DRY_RUN=1 ./scripts/publish.sh
 - **Per-group managed set.** A publish is declarative over the group's tree; a file omitted from
   the payload is deleted on the members. Current modes:
   - `docker-plus-cluster` (static): `nginx.conf`, `conf.d/site.conf`, `mime.types`. The template
-    augment `augments/http/<site-docker>.conf` is deleted by the classic publish; `inputs.yaml`
-    and the `site-docker` template remain for a future template migration.
+    augment and `inputs.yaml` were removed; the classic tree is the only docker source.
   - `k8s-plus-cluster` (template): `nginx.conf`, `mime.types`,
     `augments/http/<site-k8s>.conf`. The Plus API is image-provided at `conf.d/plus-api.conf`
     and is left alone; the `plus-api` augment is optional and **not** used here (using both
