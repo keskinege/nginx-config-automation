@@ -45,6 +45,7 @@ scripts/
   nginx-test-dir.sh            real `nginx -t` for one tree
   backup-config.sh             snapshot the group's CURRENT config from NIM
   render.sh                    compose a group from NIM templates + inputs
+  sync_templates.py            create/update NIM templates from templates/
   tree_hash.py                 canonical SHA-256 / CRC32 of a config tree
   publish.sh                   publish a tree with externalId
   list-groups.sh               list groups by deploy_mode
@@ -121,6 +122,28 @@ augmentData:
 
 YAML inputs need `yq` (mikefarah v4); JSON inputs use only `python3`. Template names resolve
 from `.nim/templates.lock.json` or from `GET /conf-templates`.
+
+### Template sync
+
+`scripts/sync_templates.py` creates missing templates and diffs files by name/content. It never
+deletes a whole template; it can prune extra files inside a template.
+
+```bash
+# check local templates against NIM (2 = drift, no writes)
+NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
+  python3 scripts/sync_templates.py --all --check
+
+# apply
+NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
+  python3 scripts/sync_templates.py --all
+
+# one template, or preview
+NIM_URL=… python3 scripts/sync_templates.py --template nginx-base
+NIM_URL=… python3 scripts/sync_templates.py --all --dry-run
+```
+
+The template workflow runs `--check` before compose/publish, so a template change must be
+applied to NIM before it can be merged and deployed.
 
 ## Run it locally
 

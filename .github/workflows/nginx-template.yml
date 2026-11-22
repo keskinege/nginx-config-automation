@@ -13,6 +13,7 @@ on:
       - "scripts/publish.sh"
       - "scripts/lint-inputs.py"
       - "scripts/list-groups.sh"
+      - "scripts/sync_templates.py"
       - "tests/**"
       - "requirements-dev.txt"
       - "pytest.ini"
@@ -55,6 +56,13 @@ jobs:
 
       - name: pytest
         run: pytest -q
+
+      - name: verify templates match NIM
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: python3 scripts/sync_templates.py --all --check
 
       - name: compose every template-mode group
         env:
@@ -136,6 +144,14 @@ jobs:
           sudo wget -qO /usr/local/bin/yq \
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
+
+      - name: verify templates match NIM
+        if: matrix.group != '-'
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: python3 scripts/sync_templates.py --all --check
 
       - name: back up the config currently live on the group
         if: matrix.group != '-'

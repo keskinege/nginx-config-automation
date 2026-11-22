@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import pathlib
+import re
 import shutil
 import sys
 import threading
@@ -21,7 +22,7 @@ def b64(text: str) -> str:
 
 class MockNIM:
     def __init__(self) -> None:
-        self.requests: list[tuple[str, str, dict | None]] = []
+        self.requests: list[tuple[str, str, object | None]] = []
         self.templates = [
             {
                 "name": "nginx-base",
@@ -36,6 +37,9 @@ class MockNIM:
                 "updateTime": "y",
             }
         ]
+        self.template_files: dict[str, dict[str, dict]] = {}
+        self.next_template = 1
+        self.next_file = 1
         self.config_files = [
             {"name": "/etc/nginx/nginx.conf", "contents": b64("events {}\n")},
             {"name": "/etc/nginx/conf.d/10-site.conf", "contents": b64("server { listen 80; }\n")},
@@ -60,7 +64,11 @@ def make_handler(state: MockNIM):
         def log_message(self, *args) -> None:
             pass
 
-        def _send(self, code: int, obj: dict) -> None:
+        def _send(self, code: int, obj: dict | None = None) -> None:
+            if obj is None:
+                self.send_response(code)
+                self.end_headers()
+                return
             data = json.dumps(obj).encode()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
@@ -68,7 +76,7 @@ def make_handler(state: MockNIM):
             self.end_headers()
             self.wfile.write(data)
 
-        def _body(self) -> dict | None:
+        def _body(self):
             length = int(self.headers.get("Content-Length", 0))
             if not length:
                 return None
@@ -76,7 +84,11 @@ def make_handler(state: MockNIM):
 
         def do_GET(self) -> None:
             state.requests.append(("GET", self.path, None))
-            if self.path.startswith("/api/platform/v1/conf-templates"):
+            files_match = re.fullmatch(r"/api/platform/v1/conf-templates/([^/]+)/files", self.path)
+            if files_match:
+                uid = files_match.group(1)
+                self._send(200, {"items": list(state.template_files.get(uid, {}).values())})
+            elif self.path.startswith("/api/platform/v1/conf-templates"):
                 self._send(200, {"items": state.templates, "count": len(state.templates)})
             elif self.path == "/api/platform/v1/instance-groups":
                 self._send(200, {"items": [{"name": "test-group", "uid": "group-1"}]})
@@ -88,12 +100,93 @@ def make_handler(state: MockNIM):
         def do_PUT(self) -> None:
             body = self._body()
             state.requests.append(("PUT", self.path, body))
+            file_match = re.fullmatch(
+                r"/api/platform/v1/conf-templates/([^/]+)/files/([^/]+)", self.path
+            )
+            if file_match:
+                uid, file_uid = file_match.groups()
+                files = state.template_files.setdefault(uid, {})
+                current = next((f for f in files.values() if f.get("uid") == file_uid), None)
+                if current is None:
+                    self._send(404, {"message": "file not found"})
+                    return
+                old_name = current["name"]
+                current.update(body or {})
+                if current["name"] != old_name:
+                    files[current["name"]] = files.pop(old_name)
+                self._send(200, current)
+                return
             self._send(200, state.compose_response())
 
         def do_POST(self) -> None:
             body = self._body()
             state.requests.append(("POST", self.path, body))
+            if self.path == "/api/platform/v1/conf-templates":
+                uid = f"new-{state.next_template}"
+                state.next_template += 1
+                files = {}
+                for item in (body or {}).get("files", []):
+                    file_uid = f"file-{state.next_file}"
+                    state.next_file += 1
+                    files[item["name"]] = {
+                        "name": item["name"],
+                        "type": item["type"],
+                        "content": item["content"],
+                        "uid": file_uid,
+                    }
+                state.template_files[uid] = files
+                created = {
+                    "name": body["name"],
+                    "uid": uid,
+                    "description": body.get("description", ""),
+                    "state": body.get("state", "draft"),
+                    "analyzedState": "valid",
+                    "analysisErrors": [],
+                    "type": body.get("type", "base"),
+                    "isFactory": False,
+                    "hasSubmissions": False,
+                    "createTime": "x",
+                    "updateTime": "y",
+                    "files": list(files.values()),
+                }
+                state.templates.append(created)
+                self._send(201, created)
+                return
+            files_match = re.fullmatch(r"/api/platform/v1/conf-templates/([^/]+)/files", self.path)
+            if files_match:
+                uid = files_match.group(1)
+                files = state.template_files.setdefault(uid, {})
+                added = []
+                for item in body or []:
+                    file_uid = f"file-{state.next_file}"
+                    state.next_file += 1
+                    entry = {
+                        "name": item["name"],
+                        "type": item["type"],
+                        "content": item["content"],
+                        "uid": file_uid,
+                    }
+                    files[item["name"]] = entry
+                    added.append(entry)
+                self._send(201, {"items": added, "failures": []})
+                return
             self._send(202, {"deploymentUID": "dep-1", "result": "accepted"})
+
+        def do_DELETE(self) -> None:
+            state.requests.append(("DELETE", self.path, None))
+            file_match = re.fullmatch(
+                r"/api/platform/v1/conf-templates/([^/]+)/files/([^/]+)", self.path
+            )
+            if file_match:
+                uid, file_uid = file_match.groups()
+                files = state.template_files.get(uid, {})
+                for name, item in list(files.items()):
+                    if item.get("uid") == file_uid:
+                        del files[name]
+                        break
+                self._send(204)
+                return
+            self._send(404, {"message": "not found"})
 
     return Handler
 
