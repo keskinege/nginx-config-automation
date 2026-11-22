@@ -194,6 +194,9 @@ GROUP=docker-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
   ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
 ```
 
+`check-live-drift.sh` compares **configFiles only**; preserved aux files (such as
+`/etc/nginx/tls/tls.crt`) are outside the Git-declarative set and are ignored.
+
 `render.sh` hashes the **whole rendered tree** — every file recursively, including every
 `conf.d/*.conf`, `augments/**`, and aux file. The recipe is `nginx-config-tree-v1`: sorted POSIX
 paths, length-prefixed path and bytes. `render-manifest.txt` and lock files are excluded.
@@ -245,6 +248,10 @@ DRY_RUN=1 ./scripts/publish.sh
   `nginx -t` fails.
 - **Only online members receive a publish.** A reconnecting instance is synced to the last
   successful group publish.
+- **Offline members.** NIM stores the config but no member reports an outcome; `publish.sh`
+  times out and exits `1`. The config applies when the members reconnect. Check
+  `GET /systems/{systemUid}` → `.status.state` (`online`/`offline`) before treating a timeout as
+  a bad config.
 - **`status: successful` is not enough.** NIM reports success if *any* online member applied it;
   `publish.sh` fails on `details.failure`, `details.error`, and when nothing applied.
 - **A group with no members** accepts a publish and stores the config for future members; the job

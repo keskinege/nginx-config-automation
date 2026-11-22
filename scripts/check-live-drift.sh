@@ -59,7 +59,9 @@ def relative_name(name, root):
         raise SystemExit(f"refusing unsafe config path: {name!r}")
     return "/".join(parts)
 
-for section in ("configFiles", "auxFiles"):
+for section in ("configFiles",):
+    # auxFiles are preserved from the live group (e.g. tls/tls.crt) and are
+    # outside the Git-declarative set, so they are not part of this hash.
     block = (data.get(section) or {})
     section_root = block.get("rootDir") or managed_root
     for item in block.get("files") or []:
