@@ -154,7 +154,7 @@ jobs:
               # shellcheck disable=SC2086
             g=$(for d in $changed; do
                     mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
-                    [ "$mode" = template ] && echo "$d"
+                    if [ "$mode" = template ]; then echo "$d"; fi
                   done)
             fi
           fi
