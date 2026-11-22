@@ -8,8 +8,9 @@ groups. A group is deployed in one of two modes:
 | `static` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `scripts/publish.sh` |
 
-Currently both instance groups are template-managed. Their last static trees are retained in
-`groups/` as the tested rollback source. The per-group `deploy_mode` in `group.yaml` decides
+Currently `docker-plus-cluster` is classic/static and `k8s-plus-cluster` is template-managed.
+The static docker tree and the template inputs/augments are both retained so the group can move
+between modes with a `deploy_mode` flip. The per-group `deploy_mode` in `group.yaml` decides
 which workflow may publish it: exactly one.
 
 ## Layout
@@ -36,9 +37,12 @@ templates/
       http.tmpl
       http.json
 groups/
-  docker-plus-cluster/         # template-managed
-    group.yaml                 # name, require_mgmt, deploy_mode: template
-    inputs.yaml                # baseData + augmentData
+  docker-plus-cluster/         # classic/static
+    group.yaml                 # deploy_mode: static
+    inputs.yaml                # retained for the template path; inactive
+    nginx.conf
+    conf.d/site.conf
+    mime.types
   k8s-plus-cluster/            # template-managed; static tree retained for rollback
     group.yaml                 # deploy_mode: template
     inputs.yaml
@@ -253,12 +257,13 @@ DRY_RUN=1 ./scripts/publish.sh
 ## Semantics you must know
 
 - **Per-group managed set.** A publish is declarative over the group's tree; a file omitted from
-  the payload is deleted on the members. After the migrations:
-  - `docker-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-docker>.conf`;
-    the old `conf.d/site.conf` is removed.
-  - `k8s-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-k8s>.conf`.
-    The Plus API is image-provided at `conf.d/plus-api.conf` and is left alone; the
-    `plus-api` augment exists as an optional template but is **not** used here (using both
+  the payload is deleted on the members. Current modes:
+  - `docker-plus-cluster` (static): `nginx.conf`, `conf.d/site.conf`, `mime.types`. The template
+    augment `augments/http/<site-docker>.conf` is deleted by the classic publish; `inputs.yaml`
+    and the `site-docker` template remain for a future template migration.
+  - `k8s-plus-cluster` (template): `nginx.conf`, `mime.types`,
+    `augments/http/<site-k8s>.conf`. The Plus API is image-provided at `conf.d/plus-api.conf`
+    and is left alone; the `plus-api` augment is optional and **not** used here (using both
     produced a duplicate `127.0.0.1:9000` server).
   - `/etc/nginx/tls/tls.crt` on k8s is preserved as an **aux** file with `PRESERVE_AUX=1`.
 - **Static trees must be self-contained.** Every explicit `include /etc/nginx/<path>;` must
