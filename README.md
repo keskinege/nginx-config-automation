@@ -144,7 +144,9 @@ NIM_URL=… python3 scripts/sync_templates.py --all --dry-run
 ```
 
 The template workflow runs `--check` before compose/publish, so a template change must be
-applied to NIM before it can be merged and deployed.
+applied to NIM before it can be merged and deployed. A weekly scheduled job runs
+`scripts/check-live-drift.sh` for every template-mode group and fails if the live NIM config
+differs from `.nim/rendered.lock.json`.
 
 ## Run it locally
 

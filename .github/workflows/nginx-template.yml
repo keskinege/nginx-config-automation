@@ -25,6 +25,8 @@ on:
       - "groups/**/inputs.yaml"
       - "groups/**/group.yaml"
       - ".nim/**"
+  schedule:
+    - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -73,6 +75,29 @@ jobs:
           for g in $(./scripts/list-groups.sh template); do
             GROUP="$g" OUT_DIR="rendered/$g" DRY_RUN=1 ./scripts/render.sh
             GROUP="$g" CHECK_HASH=1 HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
+          done
+
+  drift:
+    name: check live drift
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: check live drift for every template group
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: |
+          for g in $(./scripts/list-groups.sh template); do
+            GROUP="$g" ./scripts/check-live-drift.sh
           done
 
   changed:
