@@ -46,6 +46,7 @@ scripts/
   backup-config.sh             snapshot the group's CURRENT config from NIM
   render.sh                    compose a group from NIM templates + inputs
   sync_templates.py            create/update NIM templates from templates/
+  check-live-drift.sh          compare live NIM config to the rendered hash
   tree_hash.py                 canonical SHA-256 / CRC32 of a config tree
   publish.sh                   publish a tree with externalId
   list-groups.sh               list groups by deploy_mode
@@ -180,6 +181,13 @@ HASH_ONLY=1 GROUP=docker-plus-cluster … ./scripts/render.sh
 
 # assert an exact hash
 EXPECTED_SHA256=<sha256> GROUP=docker-plus-cluster … ./scripts/render.sh
+```
+
+Check the live NIM config against the recorded hash:
+
+```bash
+GROUP=docker-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
+  ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
 ```
 
 `render.sh` hashes the **whole rendered tree** — every file recursively, including every
