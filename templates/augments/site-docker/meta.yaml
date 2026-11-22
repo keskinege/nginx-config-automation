@@ -1,7 +1,0 @@
-name: site-docker
-type: augment
-state: draft
-description: Docker group default HTTP server.
-files:
-  - source: http.tmpl
-  - source: http.json
