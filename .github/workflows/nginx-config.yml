@@ -91,7 +91,7 @@ jobs:
             # shellcheck disable=SC2086
             g=$(for d in $changed; do
                   mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
-                  [ "$mode" = static ] && echo "$d"
+                  if [ "$mode" = static ]; then echo "$d"; fi
                 done)
           fi
           [ -z "$g" ] && g="-"
