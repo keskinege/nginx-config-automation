@@ -27,6 +27,14 @@ templates/
       meta.yaml
       http.tmpl
       http.json
+    site-k8s/
+      meta.yaml
+      http.tmpl
+      http.json
+    plus-api/                  # optional; k8s image already provides conf.d/plus-api.conf
+      meta.yaml
+      http.tmpl
+      http.json
 groups/
   docker-plus-cluster/         # template-managed
     group.yaml                 # name, require_mgmt, deploy_mode: template
@@ -35,7 +43,7 @@ groups/
     group.yaml                 # deploy_mode: template
     inputs.yaml
     nginx.conf
-    conf.d/plus-api.conf       # rollback copy; removed on template publish
+    conf.d/plus-api.conf       # rollback copy; the image also provides this at runtime
     mime.types
 .nim/
   templates.lock.json          # template name -> uid
@@ -239,8 +247,10 @@ DRY_RUN=1 ./scripts/publish.sh
   the payload is deleted on the members. After the migrations:
   - `docker-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-docker>.conf`;
     the old `conf.d/site.conf` is removed.
-  - `k8s-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-k8s>.conf`,
-    `augments/http/<plus-api>.conf`; the old `conf.d/plus-api.conf` is removed.
+  - `k8s-plus-cluster`: `nginx.conf`, `mime.types`, `augments/http/<site-k8s>.conf`.
+    The Plus API is image-provided at `conf.d/plus-api.conf` and is left alone; the
+    `plus-api` augment exists as an optional template but is **not** used here (using both
+    produced a duplicate `127.0.0.1:9000` server).
   - `/etc/nginx/tls/tls.crt` on k8s is preserved as an **aux** file with `PRESERVE_AUX=1`.
 - **Static trees must be self-contained.** Every explicit `include /etc/nginx/<path>;` must
   exist in the tree. The retained static trees include `mime.types` for rollback; without it,
