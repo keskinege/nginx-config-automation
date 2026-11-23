@@ -66,7 +66,13 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/setup-yq
+      - uses: ./.github/actions/setup-plus-registry
+        with:
+          crt: ${{ secrets.NGINX_REPO_CRT }}
+          key: ${{ secrets.NGINX_REPO_KEY }}
       - run: ./scripts/nginx-test.sh
+        env:
+          NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
 
   template:
     name: template validation
@@ -89,6 +95,10 @@ jobs:
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
+      - uses: ./.github/actions/setup-plus-registry
+        with:
+          crt: ${{ secrets.NGINX_REPO_CRT }}
+          key: ${{ secrets.NGINX_REPO_KEY }}
       - name: render, lint and test every template group
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
@@ -96,6 +106,7 @@ jobs:
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
+          NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
         run: |
           set -euo pipefail
           for g in $(./scripts/list-groups.sh template); do

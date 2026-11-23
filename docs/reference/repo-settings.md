@@ -18,7 +18,9 @@ job, but `ci-gate` still reports.
 | `NIM_USER` | repository | `admin` |
 | `NIM_PASSWORD` | repository | the local admin password |
 | `NIM_MGMT_ENDPOINT` | repository | `mgmt usage_report` endpoint, substituted at render/publish |
-| `NGINX_PLUS_JWT` | **not set** | required for the real Plus image; the F5 registry rejects the cluster JWT |
+| `NGINX_REPO_CRT` | repository | F5 registry client certificate (`nginx-repo.crt`) |
+| `NGINX_REPO_KEY` | repository | F5 registry client key (`nginx-repo.key`) |
+| `NGINX_PLUS_JWT` | repository | runtime NGINX Plus license for `nginx -t` |
 
 The `nim` environment exists and both publish jobs use it, but it has no protection rules yet.
 PR validation reads the repository `NIM_*` secrets. NIM exposes only the local `admin` identity
