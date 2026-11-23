@@ -53,8 +53,8 @@ Use **neither** for:
 
 Current examples:
 
-- `docker-plus-cluster` — **static**; the classic tree is the only source.
-- `k8s-plus-cluster` — **template** (`nginx-base` + `site-k8s`; Plus API is image-provided).
+- `static-cluster` — **static**; the classic tree is the only source.
+- `template-cluster` — **template** (`nginx-base` + `site-k8s`; Plus API is image-provided).
 
 ---
 

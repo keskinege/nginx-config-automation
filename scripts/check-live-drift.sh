@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Compare the live NIM group config to the recorded rendered hash.
 #
-#   GROUP=docker-plus-cluster NIM_URL=... NIM_USER=... NIM_PASSWORD=... \
+#   GROUP=static-cluster NIM_URL=... NIM_USER=... NIM_PASSWORD=... \
 #     ./scripts/check-live-drift.sh
 #
 # Exit codes: 0 no drift, 2 drift, 3 no recorded hash.

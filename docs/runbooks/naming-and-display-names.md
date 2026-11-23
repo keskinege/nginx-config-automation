@@ -5,17 +5,20 @@ group".
 
 | Thing | Mutable? | Current |
 |---|---|---|
-| NIM instance-group `name` | **No** (immutable after create) | `docker-plus-cluster`, `k8s-plus-cluster` |
-| NIM instance-group `displayName` | Yes (`PATCH`) | same as `name` |
+| NIM instance-group `name` | **No** (immutable after create) | `static-cluster`, `template-cluster` |
+| NIM instance-group `displayName` | Yes (`PATCH`) | `Docker Plus — static`, `K8s Plus — template` |
 | GitHub workflow display name | Yes (file + `name:`) | `nginx-config`, `nginx-template` |
 | GitHub workflow file | Yes | `.github/workflows/nginx-config.yml`, `nginx-template.yml` |
 
 ---
 
-## 1. Recommended: change display names, not NIM group names
+## 1. Keep the group name stable; label with `displayName`
 
-Keep `name` stable (`docker-plus-cluster`, `k8s-plus-cluster`) and set a human-friendly
-`displayName` that includes the mode:
+The groups are now `static-cluster` (static) and `template-cluster` (template). Those names are the
+permanent identifiers: the agent, the scripts, CI, and the `externalId` history all use them. Do
+not rename them again without doing the migration in §3.
+
+Set a human-friendly `displayName` for the UI; it can change at any time:
 
 - `Docker Plus — static`
 - `K8s Plus — template`
@@ -28,7 +31,7 @@ AUTH=(-sk -u "$NIM_USER:$NIM_PASSWORD")
 
 # Look up the uid by name first
 curl "${AUTH[@]}" "$BASE/instance-groups" \
-  | jq -r '.items[] | select(.name=="docker-plus-cluster") | .uid'
+  | jq -r '.items[] | select(.name=="static-cluster") | .uid'
 
 curl "${AUTH[@]}" -X PATCH "$BASE/instance-groups/<group-uid>" \
   -H 'Content-Type: application/json' \
@@ -41,9 +44,8 @@ curl "${AUTH[@]}" -X PATCH "$BASE/instance-groups/<group-uid>" \
 ### Repo directory names
 
 The scripts assume the directory basename equals the NIM group `name` (`publish.sh`,
-`backup-config.sh`, `list-groups.sh`, and therefore `matrix.group`). Do not rename
-`groups/docker-plus-cluster` to `groups/static-cluster` unless you do the full migration in §3. Add
-a `# static` / `# template` comment or rely on `deploy_mode`.
+`backup-config.sh`, `list-groups.sh`, and therefore `matrix.group`). Rename the directory and the
+NIM group together, or not at all. If you need a different identifier, do the full migration in §3.
 
 ---
 
@@ -97,26 +99,27 @@ The template workflow can take the same publish-job rename in the same PR. Do no
 
 ---
 
-## 3. Actual NIM group rename (only if the identifier must change)
+## 3. Renaming a NIM group (migration)
 
-Example target: `docker-plus-cluster` → `static-cluster`, `k8s-plus-cluster` → `template-cluster`.
-
-NIM has **no rename operation** for an instance group. A rename is a migration:
+NIM has **no rename operation** for an instance group. This is the procedure used to move
+`docker-plus-cluster` → `static-cluster` and `k8s-plus-cluster` → `template-cluster`. Use the same
+steps for any future rename:
 
 1. Create the new group:
 
    ```bash
    curl -sk -u "$NIM_USER:$NIM_PASSWORD" -X POST "$BASE/instance-groups" \
      -H 'Content-Type: application/json' \
-     -d '{"name":"static-cluster","displayName":"Docker Plus — static"}'
+     -d '{"name":"<new-name>","displayName":"<New Name>"}'
    ```
 
 2. Move every member:
    - **Agent-managed hosts:** set `instance_group: <new-name>` in `agent-dynamic.conf`, then restart
      `nginx-agent`.
-   - **Flux-managed members:** update the `agent-dynamic.conf` key in the member's ConfigMap and the
-     Flux source, then let Flux reconcile or restart the agent in place. Do not use
-     `kubectl rollout restart` (new NIM system IDs).
+   - **Kubernetes members:** edit `/var/lib/nginx-agent/agent-dynamic.conf` on the persisted agent
+     state volume, not only the ConfigMap. The init container seeds that file with `cp -n`, so a
+     ConfigMap change never reaches a running pod. Update the ConfigMap/Flux source as well for
+     future pods, then restart `nginx-agent` in place. Do not recreate the pod (new system ID).
 3. Publish to the new group:
 
    ```bash
@@ -142,8 +145,8 @@ Risks: members are briefly unmanaged during the move; a Flux change must be coor
 change is per-host; NIM group history is lost; automation and docs must be updated atomically. This
 is not a cosmetic rename.
 
-**Recommendation:** keep the NIM `name` stable and express the mode through `displayName` and
-`deploy_mode`. Rename the **workflows** to `nginx-static` / `nginx-template` if symmetry matters;
+**Recommendation:** the current names already encode the mode; keep them. Use `displayName` for
+labels, and rename the **workflows** to `nginx-static` / `nginx-template` if symmetry matters —
 that is safe and reversible.
 
 ---

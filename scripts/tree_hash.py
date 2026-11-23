@@ -11,9 +11,9 @@ Recipe (stable across runs and platforms):
     len(bytes) as 8-byte big-endian | file bytes
 
 Usage:
-  python3 scripts/tree_hash.py rendered/docker-plus-cluster
-  python3 scripts/tree_hash.py groups/docker-plus-cluster --exclude group.yaml
-  python3 scripts/tree_hash.py rendered/docker-plus-cluster --json
+  python3 scripts/tree_hash.py rendered/static-cluster
+  python3 scripts/tree_hash.py groups/static-cluster --exclude group.yaml
+  python3 scripts/tree_hash.py rendered/static-cluster --json
 """
 from __future__ import annotations
 
