@@ -320,7 +320,6 @@ if write_hash == "1":
         "crc32": info["crc32"],
         "files": info["files"],
         "bytes": info["bytes"],
-        "request_sha256": body_digest,
         "inputs": inputs_path,
         "templates": resolved,
         "updatedAt": now,
