@@ -92,8 +92,8 @@ jobs:
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_USER: ${{ secrets.NIM_VALIDATOR_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_VALIDATOR_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
       - uses: ./.github/actions/setup-plus-registry
         with:
@@ -103,8 +103,8 @@ jobs:
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_USER: ${{ secrets.NIM_VALIDATOR_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_VALIDATOR_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
           NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
         run: |
