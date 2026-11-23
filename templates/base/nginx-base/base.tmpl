@@ -5,7 +5,7 @@
 
 {{ $workerConnections := default 1024 $main.worker_connections }}
 {{ $keepalive := default 65 $main.keepalive_timeout }}
-{{ $mgmtEndpoint := default "ovh-fr.tail7fa79.ts.net" $main.mgmt_endpoint }}
+{{ $mgmtEndpoint := default "nim-mgmt-endpoint.invalid" $main.mgmt_endpoint }}
 {{ $accessLog := default "/var/log/nginx/access.log" $http.access_log }}
 
 user  nginx;

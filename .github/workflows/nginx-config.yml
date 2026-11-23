@@ -145,6 +145,7 @@ jobs:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
           GROUP: ${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
           PRESERVE_AUX: "1"
