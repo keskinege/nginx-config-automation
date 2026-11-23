@@ -85,19 +85,7 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = workflow_dispatch ] || [ -z "$BEFORE" ] || \
-             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            g=$(./scripts/list-groups.sh static)
-          else
-            changed=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | cut -d/ -f2 | sort -u)
-            # shellcheck disable=SC2086
-            g=$(for d in $changed; do
-                  [ -f "groups/$d/group.yaml" ] || continue
-                  mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
-                  if [ "$mode" = static ]; then echo "$d"; fi
-                done)
-          fi
-          [ -z "$g" ] && g="-"
+          g=$(./scripts/detect-groups.sh static "$BEFORE" "$SHA" "$EVENT")
           json=$(printf '%s\n' "$g" | jq -R . | jq -cs .)
           echo "groups=$json" >> "$GITHUB_OUTPUT"
           echo "static groups to publish: $json"

@@ -92,7 +92,7 @@ def hash_tree(
 
     files: dict[str, bytes] = {}
     for dirpath, dirnames, filenames in os.walk(base):
-        dirnames[:] = sorted(d for d in dirnames if d != ".git")
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
         for filename in sorted(filenames):
             path = pathlib.Path(dirpath) / filename
             rel = path.relative_to(base).as_posix()
