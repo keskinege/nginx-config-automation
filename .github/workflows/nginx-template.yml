@@ -92,6 +92,7 @@ jobs:
         run: |
           for g in $(./scripts/list-groups.sh template); do
             GROUP="$g" OUT_DIR="rendered/$g" ./scripts/render.sh
+            ./scripts/lint.sh --rendered "$g"
             ./scripts/nginx-test-dir.sh "rendered/$g"
           done
 
@@ -151,24 +152,7 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = workflow_dispatch ] || [ -z "$BEFORE" ] || \
-             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            g=$(./scripts/list-groups.sh template)
-          else
-            if git diff --name-only "$BEFORE" "$SHA" | grep -qE '^(templates/|\.nim/)'; then
-              g=$(./scripts/list-groups.sh template)
-            else
-              changed=$(git diff --name-only "$BEFORE" "$SHA" -- groups/ | \
-                sed -n 's#^groups/\([^/]*\)/.*#\1#p' | sort -u)
-              # shellcheck disable=SC2086
-            g=$(for d in $changed; do
-                    [ -f "groups/$d/group.yaml" ] || continue
-                    mode=$(yq -r '.deploy_mode // "static"' "groups/$d/group.yaml" 2>/dev/null || echo static)
-                    if [ "$mode" = template ]; then echo "$d"; fi
-                  done)
-            fi
-          fi
-          [ -z "$g" ] && g="-"
+          g=$(./scripts/detect-groups.sh template "$BEFORE" "$SHA" "$EVENT")
           json=$(printf '%s\n' "$g" | jq -R . | jq -cs .)
           echo "groups=$json" >> "$GITHUB_OUTPUT"
           echo "template groups to publish: $json"
@@ -247,9 +231,11 @@ jobs:
           HASH_FILE: .nim/rendered.lock.json
         run: ./scripts/render.sh
 
-      - name: nginx -t on the rendered tree
+      - name: lint and nginx -t on the rendered tree
         if: matrix.group != '-'
-        run: ./scripts/nginx-test-dir.sh "rendered/${{ matrix.group }}"
+        run: |
+          ./scripts/lint.sh --rendered "${{ matrix.group }}"
+          ./scripts/nginx-test-dir.sh "rendered/${{ matrix.group }}"
 
       - name: publish with externalId = commit sha
         if: matrix.group != '-'

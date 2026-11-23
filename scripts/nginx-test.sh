@@ -8,7 +8,7 @@ rc=0
 
 for gdir in groups/*/; do
   g=$(basename "$gdir")
-  mode=$(yq -r '.deploy_mode // "static"' "$gdir/group.yaml" 2>/dev/null || echo static)
+  mode=$(scripts/group-mode.sh "${gdir%/}")
   if [ "$mode" = template ]; then
     echo "=== $g (template; skipped) ==="
     continue

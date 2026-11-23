@@ -64,8 +64,10 @@ else
   AUX_FILES='{"rootDir":"/","files":[]}'
 fi
 
+PAYLOAD=$(mktemp)
+trap 'rm -f "$PAYLOAD"' EXIT
 python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$EXTERNAL_ID_TYPE" "$AUX_FILES" \
-  "$NIM_MGMT_ENDPOINT" "$MGMT_PLACEHOLDER" > /tmp/payload.json <<'PY'
+  "$NIM_MGMT_ENDPOINT" "$MGMT_PLACEHOLDER" > "$PAYLOAD" <<'PY'
 import base64, json, os, sys
 (config_dir, root, update_time, external_id, external_id_type, aux_json,
  mgmt_endpoint, mgmt_placeholder) = sys.argv[1:9]
@@ -73,7 +75,8 @@ placeholder = mgmt_placeholder.encode()
 endpoint = mgmt_endpoint.encode()
 files = []
 EXCLUDED = {"group.yaml", "inputs.yaml", "render-manifest.txt", ".DS_Store"}
-for dirpath, _, names in os.walk(config_dir):
+for dirpath, dirnames, names in os.walk(config_dir):
+    dirnames[:] = [d for d in dirnames if not d.startswith(".")]
     for name in names:
         full = os.path.join(dirpath, name)
         rel = os.path.relpath(full, config_dir).replace(os.sep, "/")
@@ -101,19 +104,21 @@ print(json.dumps({
 }))
 PY
 
-echo "group=$GROUP ($GROUP_UID) members=$MEMBERS files=$(jq '.configFiles.files|length' /tmp/payload.json) aux=$(jq '.auxFiles.files|length' /tmp/payload.json) externalId=$EXTERNAL_ID"
-jq -r '.configFiles.files[].name' /tmp/payload.json | sed 's/^/  /'
+echo "group=$GROUP ($GROUP_UID) members=$MEMBERS files=$(jq '.configFiles.files|length' "$PAYLOAD") aux=$(jq '.auxFiles.files|length' "$PAYLOAD") externalId=$EXTERNAL_ID"
+jq -r '.configFiles.files[].name' "$PAYLOAD" | sed 's/^/  /'
 
 if [ "${DRY_RUN:-0}" = "1" ]; then
-  echo "publish: group=$GROUP config_dir=$CONFIG_DIR files=$(jq '.configFiles.files|length' /tmp/payload.json) externalId=$EXTERNAL_ID (dry run)"
-  jq -r '.configFiles.files[].name' /tmp/payload.json | sed 's/^/  /'
+  echo "publish: group=$GROUP config_dir=$CONFIG_DIR files=$(jq '.configFiles.files|length' "$PAYLOAD") externalId=$EXTERNAL_ID (dry run)"
+  echo "payload=$PAYLOAD"
+  jq -r '.configFiles.files[].name' "$PAYLOAD" | sed 's/^/  /'
+  trap - EXIT
   exit 0
 fi
 
 resp=$(mktemp)
 code=$(api -o "$resp" -w '%{http_code}' -X POST \
   "$BASE/instance-groups/$GROUP_UID/config" \
-  -H 'Content-Type: application/json' -d @/tmp/payload.json)
+  -H 'Content-Type: application/json' -d @"$PAYLOAD")
 
 if [ "$code" != "202" ] && [ "$code" != "200" ]; then
   echo "::error::publish rejected (HTTP $code)"
@@ -163,7 +168,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo
     echo "Files:"
     echo '```'
-    jq -r '.configFiles.files[].name' /tmp/payload.json
+    jq -r '.configFiles.files[].name' "$PAYLOAD"
     echo '```'
   } >> "$GITHUB_STEP_SUMMARY"
 fi

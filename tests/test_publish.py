@@ -50,8 +50,23 @@ def test_preserve_aux_keeps_current_aux_files(mock_nim, tmp_path):
 
     result = run_publish(mock_nim, "test-group", tree, DRY_RUN=1, PRESERVE_AUX=1)
     assert result.returncode == 0, result.stderr
-    payload = json.loads(pathlib.Path("/tmp/payload.json").read_text())
+    payload_path = next(
+        line.split("=", 1)[1]
+        for line in result.stdout.splitlines()
+        if line.startswith("payload=")
+    )
+    payload = json.loads(pathlib.Path(payload_path).read_text())
     assert any(
         item["name"] == "/etc/nginx/tls/tls.crt"
         for item in payload["auxFiles"]["files"]
     )
+
+
+def test_dot_directories_are_not_published(mock_nim, tmp_path):
+    tree = tmp_path / "tree"
+    (tree / ".vscode").mkdir(parents=True)
+    (tree / ".vscode" / "settings.json").write_text("{}\n")
+    (tree / "nginx.conf").write_text("events {}\n")
+    result = run_publish(mock_nim, "test-group", tree, DRY_RUN=1)
+    assert result.returncode == 0, result.stderr
+    assert ".vscode" not in result.stdout
