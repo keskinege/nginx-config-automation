@@ -13,13 +13,6 @@
     },
     "uid": "942a6e96-fcfe-4f87-ad58-545abab7996b"
   },
-  "plus-api": {
-    "files": {
-      "http.json": "d074b477fbc046bc113920978061f1e8353d75b4d6f765dbf659c3acbb2cdb23",
-      "http.tmpl": "4bd4268a2a4f398ade5590cfe4c7a43525ca0f8138586bf68cef8d90af40393c"
-    },
-    "uid": "7f5acf1b-a385-4934-aa95-23be54112596"
-  },
   "site-k8s": {
     "files": {
       "http.json": "369c62c642715db394cb47e102e8f8323a8214109b7a04d01251e43001c8cf9d",

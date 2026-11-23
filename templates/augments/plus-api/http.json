@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Plus API inputs",
-  "type": "object",
-  "properties": {
-    "templateInput": {"type": ["object", "null"], "properties": {}}
-  },
-  "required": []
-}

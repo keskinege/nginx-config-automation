@@ -69,7 +69,7 @@ jobs:
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
 
-      - name: compose every template-mode group
+      - name: render, lint and test every template group
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
@@ -78,20 +78,8 @@ jobs:
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
         run: |
           for g in $(./scripts/list-groups.sh template); do
-            GROUP="$g" OUT_DIR="rendered/$g" DRY_RUN=1 ./scripts/render.sh
-            GROUP="$g" CHECK_HASH=1 HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
-          done
-
-      - name: nginx -t on every rendered tree
-        env:
-          NIM_URL: ${{ secrets.NIM_URL }}
-          NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
-          NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
-        run: |
-          for g in $(./scripts/list-groups.sh template); do
-            GROUP="$g" OUT_DIR="rendered/$g" ./scripts/render.sh
+            GROUP="$g" OUT_DIR="rendered/$g" CHECK_HASH=1 \
+              HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
             ./scripts/lint.sh --rendered "$g"
             ./scripts/nginx-test-dir.sh "rendered/$g"
           done
@@ -115,6 +103,7 @@ jobs:
           NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
         run: |
           for g in $(./scripts/list-groups.sh template); do
             GROUP="$g" ./scripts/check-live-drift.sh
@@ -227,7 +216,7 @@ jobs:
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
           GROUP: ${{ matrix.group }}
           OUT_DIR: rendered/${{ matrix.group }}
-          WRITE_HASH: "1"
+          CHECK_HASH: "1"
           HASH_FILE: .nim/rendered.lock.json
         run: ./scripts/render.sh
 

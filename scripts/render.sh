@@ -264,9 +264,9 @@ for section in ("configFiles", "auxFiles"):
             raise SystemExit(f"duplicate config path with different contents: {rel}")
         files[rel] = data
 
-# The template ships a documented placeholder for the mgmt endpoint. Replace it
-# here, before hashing, so the lock, the written tree, and what CI publishes all
-# describe the same bytes. A group may instead set mgmt_endpoint in its inputs.
+# Hash the placeholder tree first: this is the reviewed, endpoint-independent
+# tree. Then substitute the real endpoint for the bytes we write and publish.
+canonical = hash_files(files, strip_template_tags=True)
 placeholder = mgmt_placeholder.encode()
 endpoint = mgmt_endpoint.encode()
 if endpoint:
@@ -277,8 +277,8 @@ elif any(placeholder in data for data in files.values()):
         "set NIM_MGMT_ENDPOINT (or set mgmt_endpoint in the group inputs)",
         4,
     )
-
-info = hash_files(files, strip_template_tags=True)
+published = hash_files(files, strip_template_tags=True)
+info = canonical
 body_digest = hashlib.sha256(pathlib.Path(body_path).read_bytes()).hexdigest()
 resolved = json.loads(pathlib.Path(resolved_path).read_text())
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -313,8 +313,6 @@ if check_hash == "1":
             2,
         )
     print(f"render: group={group} unchanged sha256={info['sha256']}")
-    if write_hash != "1":
-        sys.exit(0)
 
 if write_hash == "1":
     lock[group] = {
@@ -362,6 +360,7 @@ manifest = [
     f"root_dir={root_dir}",
     f"request_sha256={body_digest}",
     f"render_sha256={info['sha256']}",
+    f"published_sha256={published['sha256']}",
     f"render_crc32={info['crc32']}",
     f"render_files={info['files']}",
     f"render_bytes={info['bytes']}",

@@ -242,9 +242,9 @@ outside the Git-declarative set and are carried forward by `PRESERVE_AUX=1`.
 
 ## Rollback
 
-See `runbooks/static-vs-template.md` §5. In short: make the static tree self-contained, validate
-it, flip `deploy_mode` to `static`, and let the static workflow publish. The template augment file
-is deleted by the classic publish; aux files survive because both workflows set `PRESERVE_AUX=1`.
+`template-cluster` has no static tree. Roll it back with `scripts/restore.sh` from the backup
+artifact; see `runbooks/rollback.md`. `static-cluster` rolls back by re-publishing the previous
+commit's tree.
 
 ## Where the pieces live
 
