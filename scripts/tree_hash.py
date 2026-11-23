@@ -28,6 +28,7 @@ import zlib
 
 PREFIX = b"nginx-config-tree-v1\0"
 EXCLUDED = {"render-manifest.txt", "render-lock.json", ".DS_Store"}
+ENDPOINT_PLACEHOLDER = b"nim-mgmt-endpoint.invalid"
 
 
 def _is_excluded(rel: str, name: str, patterns: tuple[str, ...]) -> bool:
@@ -37,6 +38,14 @@ def _is_excluded(rel: str, name: str, patterns: tuple[str, ...]) -> bool:
         if fnmatch.fnmatch(rel, pattern) or fnmatch.fnmatch(name, pattern):
             return True
     return False
+
+
+def normalize_endpoint(files: dict[str, bytes], real: str) -> dict[str, bytes]:
+    if not real:
+        return files
+    needle = real.encode()
+    return {name: data.replace(needle, ENDPOINT_PLACEHOLDER)
+            for name, data in files.items()}
 
 
 def _strip_template_tags(data: bytes) -> bytes:
@@ -116,13 +125,34 @@ def main() -> int:
     )
     parser.add_argument("--json", action="store_true", help="Emit a JSON object.")
     parser.add_argument(
+        "--normalize-endpoint",
+        metavar="VALUE",
+        help="Replace VALUE with nim-mgmt-endpoint.invalid before hashing.",
+    )
+    parser.add_argument(
         "--strip-template-tags",
         action="store_true",
         help="Ignore generated `# __templateTag=...` comments when hashing.",
     )
     args = parser.parse_args()
 
-    info = hash_tree(args.path, tuple(args.exclude), args.strip_template_tags)
+    if args.normalize_endpoint:
+        base = pathlib.Path(args.path)
+        files: dict[str, bytes] = {}
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+            for filename in sorted(filenames):
+                path = pathlib.Path(dirpath) / filename
+                rel = path.relative_to(base).as_posix()
+                if _is_excluded(rel, filename, tuple(args.exclude)):
+                    continue
+                files[rel] = path.read_bytes()
+        info = hash_files(
+            normalize_endpoint(files, args.normalize_endpoint),
+            args.strip_template_tags,
+        )
+    else:
+        info = hash_tree(args.path, tuple(args.exclude), args.strip_template_tags)
     if args.json:
         print(json.dumps(info, sort_keys=True))
     else:

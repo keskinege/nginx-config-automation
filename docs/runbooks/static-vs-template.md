@@ -155,11 +155,13 @@ GROUP=<group> NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/check-live-dri
 5. Set `deploy_mode: template` and commit `inputs.yaml` + `.nim/rendered.lock.json`.
 6. Open a PR. The template workflow runs `sync_templates --check`, render, hash check, and
    `nginx -t`; on merge it publishes.
-7. Keep the static tree. Rollback is a `deploy_mode: static` flip plus the static publish.
+7. A template group has no static tree. Rollback is `scripts/restore.sh` from the backup artifact; see `rollback.md`.
 
 ---
 
 ## 5. Switching template → static
+
+> `template-cluster` does not keep a static tree. Its rollback path is `rollback.md`; the procedure below applies only when you are deliberately converting a group that still has a tree.
 
 1. Confirm the static tree is **self-contained**:
    - every explicit `include /etc/nginx/<path>;` exists;

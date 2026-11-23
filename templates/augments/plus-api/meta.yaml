@@ -1,7 +1,0 @@
-name: plus-api
-type: augment
-state: draft
-description: NGINX Plus API listener on loopback for nginx-agent.
-files:
-  - source: http.tmpl
-  - source: http.json
