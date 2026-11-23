@@ -82,6 +82,11 @@ class NIM:
         self.context = ssl.create_default_context(
             cafile=os.environ.get("NIM_CA", "certs/nim-ca.pem")
         )
+        # The internal apigw-svc CA predates the CA/B forum extensions. Python
+        # 3.13+ enables VERIFY_X509_STRICT, which rejects it; curl accepts it.
+        # Keep chain and hostname verification, drop only the extension check.
+        if hasattr(ssl, "VERIFY_X509_STRICT"):
+            self.context.verify_flags &= ~ssl.VERIFY_X509_STRICT
 
     @staticmethod
     def env(name: str) -> str:
