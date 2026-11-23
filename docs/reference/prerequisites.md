@@ -37,4 +37,4 @@ are required:
 - the F5 registry **client certificate** (`nginx-repo.crt`/`.key`, stored as `NGINX_REPO_CRT` and
   `NGINX_REPO_KEY`) in `/etc/docker/certs.d/private-registry.nginx.com`; this is not a JWT;
 - a valid runtime **license** (`NGINX_PLUS_JWT`). The `license.jwt` in the old `nginx-repo` export
-  expired in 2026; CI uses the live k8s license.
+  expired in 2026; CI uses the current lab subscription license (`NGINX_PLUS_JWT`).
