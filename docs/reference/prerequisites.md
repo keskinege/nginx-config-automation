@@ -30,6 +30,11 @@ python3 -m venv .venv
 .venv/bin/pytest
 ```
 
-`nginx -t` uses `nginx:1.27-alpine@sha256:65645c…` by default. The real NGINX Plus image is a
-follow-up: the F5 registry does not accept the cluster license JWT, so CI keeps the OSS image and
-neutralises Plus-only directives.
+`nginx -t` uses the real Plus image
+`private-registry.nginx.com/nginx-plus/agent:nginx-plus-20261118@sha256:7ba2bd…`. Two credentials
+are required:
+
+- the F5 registry **client certificate** (`nginx-repo.crt`/`.key`, stored as `NGINX_REPO_CRT` and
+  `NGINX_REPO_KEY`) in `/etc/docker/certs.d/private-registry.nginx.com`; this is not a JWT;
+- a valid runtime **license** (`NGINX_PLUS_JWT`). The `license.jwt` in the old `nginx-repo` export
+  expired in 2026; CI uses the live k8s license.

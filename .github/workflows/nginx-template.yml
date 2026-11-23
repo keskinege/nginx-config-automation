@@ -151,8 +151,16 @@ jobs:
           HASH_FILE: .nim/rendered.lock.json
         run: ./scripts/render.sh
 
+      - uses: ./.github/actions/setup-plus-registry
+        if: matrix.group != '-'
+        with:
+          crt: ${{ secrets.NGINX_REPO_CRT }}
+          key: ${{ secrets.NGINX_REPO_KEY }}
+
       - name: lint and nginx -t on the rendered tree
         if: matrix.group != '-'
+        env:
+          NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
         run: |
           ./scripts/lint.sh --rendered "${{ matrix.group }}"
           ./scripts/nginx-test-dir.sh "rendered/${{ matrix.group }}"
