@@ -47,6 +47,9 @@ groups/
 .nim/
   templates.lock.json          # template name -> uid
   rendered.lock.json           # group -> render sha256/crc32
+docs/
+  workflow.md                  # deploy pipeline, diagrams, step-by-step
+  runbooks/                    # task-oriented procedures
 scripts/
   lint.sh                      invariants + inputs for static groups
   lint-inputs.py               validate template names and /etc/nginx dirs
@@ -77,6 +80,19 @@ Both publish paths:
 3. `POST` it with `externalId = github.sha`.
 4. Wait for the deployment.
 5. Fail on `details.failure`, `details.error`, or when nothing applied.
+
+## Documentation
+
+In-repo under [`docs/`](docs/):
+
+- [`docs/workflow.md`](docs/workflow.md) — the deploy pipeline with diagrams: triggers, job names,
+  and step-by-step static and template paths.
+- [`docs/runbooks/adding-configs-sites-and-clusters.md`](docs/runbooks/adding-configs-sites-and-clusters.md)
+  — add a config file, site/server, template augment, or new cluster/group.
+- [`docs/runbooks/static-vs-template.md`](docs/runbooks/static-vs-template.md) — when to use each
+  mode, side-by-side trade-offs, and static ↔ template switch checklists.
+- [`docs/runbooks/naming-and-display-names.md`](docs/runbooks/naming-and-display-names.md) — NIM
+  group names (immutable), display names, workflow names, and the rename migration.
 
 ## Adding or moving a group
 
@@ -122,7 +138,7 @@ baseData:
     templateInput:
       worker_connections: "1024"
       require_mgmt: true
-      mgmt_endpoint: nim-mgmt-endpoint.invalid
+      mgmt_endpoint: <instance-manager-endpoint>   # supplied per group; must be reachable from members
       include_tls: true
   http:
     templateInput:
@@ -287,9 +303,9 @@ DRY_RUN=1 ./scripts/publish.sh
 
 Secrets: `NIM_URL`, `NIM_USER`, `NIM_PASSWORD`.
 
-The NIM is reached on its public IP because GitHub-hosted runners are not on the tailnet;
-`nim-mgmt-endpoint.invalid` resolves to a `100.x` address they cannot route. TLS uses the internal
-`manager-server` certificate, so the scripts call curl with `-k`.
+The NIM must be reachable from GitHub-hosted runners, which are not on the tailnet: a tailnet name
+resolves to a `100.x` address they cannot route, so `NIM_URL` points at an address the runners can
+reach. TLS uses the internal `manager-server` certificate, so the scripts call curl with `-k`.
 
 `NIM_USER`/`NIM_PASSWORD` are the NIM admin credentials by design (this NIM exposes no scoped
 service account). That makes **repo write access equivalent to NIM admin**: anyone who can edit
