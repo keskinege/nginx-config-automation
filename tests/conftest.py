@@ -101,6 +101,17 @@ def make_handler(state: MockNIM):
             elif self.path == "/api/platform/v1/instance-groups/group-1/config":
                 self._send(200, {
                     "updateTime": "2026-01-01T00:00:00Z",
+                    "configFiles": {
+                        "rootDir": "/etc/nginx",
+                        "files": [{
+                            "name": "/etc/nginx/nginx.conf",
+                            "contents": b64(
+                                "events {}\n"
+                                "http { include /etc/nginx/conf.d/*.conf; }\n"
+                                "mgmt { usage_report endpoint=real.example; }\n"
+                            ),
+                        }],
+                    },
                     "auxFiles": {
                         "rootDir": "/etc/nginx",
                         "files": [{

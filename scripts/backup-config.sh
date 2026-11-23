@@ -5,7 +5,8 @@
 #
 # This is the "real server" side: what the members are running now, as NIM holds
 # it — not what this repo says. Uploaded as a workflow artifact so a bad publish
-# can be rolled back by re-publishing the captured tree.
+# can be rolled back with scripts/restore.sh. The mgmt endpoint is stored as a
+# placeholder so the artifact contains no host.
 set -euo pipefail
 
 : "${NIM_URL:?set NIM_URL}"
@@ -45,33 +46,52 @@ fi
 api "$BASE/instance-groups/$GROUP_UID" > "$OUT_DIR/group.json"
 api "$BASE/instance-groups/$GROUP_UID/config" > "$OUT_DIR/group-config.json"
 
-python3 - "$OUT_DIR" "$NIM_URL" "$GROUP" "$GROUP_UID" "${EXTERNAL_ID:-unknown}" <<'PY'
-import base64, json, pathlib, sys, datetime
-out_dir, nim_url, group, uid, trigger = sys.argv[1:6]
+NIM_MGMT_ENDPOINT="${NIM_MGMT_ENDPOINT:-}"
+PLACEHOLDER="nim-mgmt-endpoint.invalid"
+
+python3 - "$OUT_DIR" "$GROUP" "$GROUP_UID" "${EXTERNAL_ID:-unknown}" \
+  "${EXTERNAL_ID_TYPE:-git}" "$NIM_MGMT_ENDPOINT" "$PLACEHOLDER" <<'PY'
+import base64, datetime, json, pathlib, sys
+
+out_dir, group = sys.argv[1], sys.argv[2]
+uid, trigger, trigger_type, endpoint, placeholder = sys.argv[3:8]
 out = pathlib.Path(out_dir)
 cfg = json.loads((out / "group-config.json").read_text())
 group_doc = json.loads((out / "group.json").read_text())
 
+needle = endpoint.encode()
+ph = placeholder.encode()
 files = []
 for section in ("configFiles", "auxFiles"):
     for f in (cfg.get(section) or {}).get("files") or []:
+        data = base64.b64decode(f.get("contents") or "")
+        if b"usage_report endpoint=" in data and ph not in data:
+            if not endpoint:
+                raise SystemExit(
+                    "::error::config contains the mgmt endpoint; set NIM_MGMT_ENDPOINT"
+                )
+            data = data.replace(needle, ph)
+        f["contents"] = base64.b64encode(data).decode()
         dest = out / f["name"].lstrip("/")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(base64.b64decode(f["contents"]))
+        dest.write_bytes(data)
         files.append(f["name"])
+
+# The uploaded JSON is the authoritative restore payload; it must be redacted too.
+(out / "group-config.json").write_text(json.dumps(cfg))
 
 versions = ((group_doc.get("configVersion") or {}).get("versions") or [])
 external = versions[-1].get("externalId") if versions else None
 
 (out / "manifest.txt").write_text("\n".join([
     f"captured_at_utc={datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
-    f"nim_url={nim_url}",
     f"instance_group={group}",
     f"instance_group_uid={uid}",
     f"members={len(group_doc.get('instances') or [])}",
     f"group_config_update_time={cfg.get('updateTime')}",
     f"group_config_external_id={external or 'none'}",
     f"trigger_commit={trigger}",
+    f"trigger_type={trigger_type}",
     f"managed_files={len(files)}",
     *[f"file={name}" for name in files],
 ]) + "\n")
