@@ -59,9 +59,12 @@ jobs:
       - name: pytest
         run: pytest -q
 
+      - name: map the NIM name
+        run: echo "${{ secrets.NIM_HOST }} manager-server" | sudo tee -a /etc/hosts
       - name: verify templates match NIM
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
@@ -69,6 +72,7 @@ jobs:
       - name: compose every template-mode group
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
@@ -81,6 +85,7 @@ jobs:
       - name: nginx -t on every rendered tree
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
@@ -106,6 +111,7 @@ jobs:
       - name: check live drift for every template group
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: |
@@ -116,6 +122,7 @@ jobs:
       - name: check NIM agents are online
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: ./scripts/check-nim-agents.sh
@@ -191,10 +198,15 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
+      - name: map the NIM name
+        if: matrix.group != '-'
+        run: echo "${{ secrets.NIM_HOST }} manager-server" | sudo tee -a /etc/hosts
+
       - name: verify templates match NIM
         if: matrix.group != '-'
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
@@ -203,6 +215,7 @@ jobs:
         if: matrix.group != '-'
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
@@ -224,6 +237,7 @@ jobs:
         if: matrix.group != '-'
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
@@ -241,6 +255,7 @@ jobs:
         if: matrix.group != '-'
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           GROUP: ${{ matrix.group }}

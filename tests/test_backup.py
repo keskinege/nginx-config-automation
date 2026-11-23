@@ -61,7 +61,7 @@ def test_backup_requires_the_endpoint(mock_nim, tmp_path):
     group = REPO / "groups" / "test-group"
     group.mkdir(parents=True, exist_ok=True)
     try:
-        result = run_backup(mock_nim, tmp_path / "backup")
+        result = run_backup(mock_nim, tmp_path / "backup", NIM_MGMT_ENDPOINT="")
         assert result.returncode != 0
         assert "set NIM_MGMT_ENDPOINT" in result.stderr
     finally:

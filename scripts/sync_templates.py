@@ -79,7 +79,9 @@ class NIM:
         password = self.env("NIM_PASSWORD")
         token = base64.b64encode(f"{user}:{password}".encode()).decode()
         self.auth = f"Basic {token}"
-        self.context = ssl._create_unverified_context()
+        self.context = ssl.create_default_context(
+            cafile=os.environ.get("NIM_CA", "certs/nim-ca.pem")
+        )
 
     @staticmethod
     def env(name: str) -> str:

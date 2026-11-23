@@ -71,6 +71,11 @@ WRITE_LOCK="${WRITE_LOCK:-0}"
 NIM_MGMT_ENDPOINT="${NIM_MGMT_ENDPOINT:-}"
 MGMT_PLACEHOLDER="${MGMT_PLACEHOLDER:-nim-mgmt-endpoint.invalid}"
 BASE="${NIM_URL%/}/api/platform/v1"
+NIM_CA="${NIM_CA:-certs/nim-ca.pem}"
+CURL=(curl -sS -m 30 --cacert "$NIM_CA" -u "$NIM_USER:$NIM_PASSWORD")
+if [ -n "${NIM_HOST:-}" ]; then
+  CURL+=(--resolve "manager-server:443:$NIM_HOST")
+fi
 
 case "$OUT_DIR" in
   ""|"/"|"."|"..") echo "::error::refusing OUT_DIR=$OUT_DIR"; exit 1 ;;
@@ -82,7 +87,7 @@ esac
 api() {
   local attempt rc
   for attempt in 1 2 3; do
-    if curl -sk -m 30 -u "$NIM_USER:$NIM_PASSWORD" "$@"; then return 0; fi
+    if "${CURL[@]}" "$@"; then return 0; fi
     rc=$?
     if [ "$attempt" -eq 3 ]; then return "$rc"; fi
     echo "api: attempt $attempt failed (curl $rc); retrying in $((attempt * 5))s" >&2
