@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Publish groups/<GROUP>/ to the NIM instance group <GROUP>.
 #
-#   GROUP=docker-plus-cluster ./scripts/publish.sh
+#   GROUP=static-cluster ./scripts/publish.sh
 #
 # The payload is declarative for the files NIM manages on that group: omitting a
 # file that was published before DELETES it on the members. Each group tree must

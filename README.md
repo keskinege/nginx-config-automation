@@ -8,7 +8,7 @@ groups. A group is deployed in one of two modes:
 | `static` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `scripts/publish.sh` |
 
-Currently `docker-plus-cluster` is classic/static and `k8s-plus-cluster` is template-managed.
+Currently `static-cluster` is classic/static and `template-cluster` is template-managed.
 The static docker tree and the template inputs/augments are both retained so the group can move
 between modes with a `deploy_mode` flip. The per-group `deploy_mode` in `group.yaml` decides
 which workflow may publish it: exactly one.
@@ -33,12 +33,12 @@ templates/
       http.tmpl
       http.json
 groups/
-  docker-plus-cluster/         # classic/static
+  static-cluster/         # classic/static
     group.yaml                 # deploy_mode: static
     nginx.conf
     conf.d/site.conf
     mime.types
-  k8s-plus-cluster/            # template-managed; static tree retained for rollback
+  template-cluster/            # template-managed; static tree retained for rollback
     group.yaml                 # deploy_mode: template
     inputs.yaml
     nginx.conf
@@ -109,7 +109,7 @@ In-repo under [`docs/`](docs/):
    over the managed set, so a file you omit is deleted on the members.
 
    **Template:** add `inputs.yaml` and reference templates from `templates/`. See
-   `groups/k8s-plus-cluster/inputs.yaml` and `templates/base/nginx-base/`.
+   `groups/template-cluster/inputs.yaml` and `templates/base/nginx-base/`.
 
 4. Open a PR. Merging publishes only the groups owned by the matching workflow.
 
@@ -187,38 +187,38 @@ python3 -m venv .venv
 
 ./scripts/lint.sh
 ./scripts/nginx-test.sh                                  # static groups; needs docker
-./scripts/nginx-test-dir.sh groups/docker-plus-cluster # classic tree
+./scripts/nginx-test-dir.sh groups/static-cluster # classic tree
 
-GROUP=docker-plus-cluster \
+GROUP=static-cluster \
 NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
 ```
 
 ### Render from templates
 
 ```bash
-GROUP=k8s-plus-cluster \
+GROUP=template-cluster \
 NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… \
-OUT_DIR=rendered/k8s-plus-cluster \
+OUT_DIR=rendered/template-cluster \
 WRITE_HASH=1 HASH_FILE=.nim/rendered.lock.json \
 ./scripts/render.sh
 
 # compose and print the file list, write nothing
-DRY_RUN=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
+DRY_RUN=1 GROUP=template-cluster … ./scripts/render.sh
 
 # compare with the last recorded render (2 = changed, 3 = no record)
-CHECK_HASH=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
+CHECK_HASH=1 GROUP=template-cluster … ./scripts/render.sh
 
 # hash only
-HASH_ONLY=1 GROUP=k8s-plus-cluster … ./scripts/render.sh
+HASH_ONLY=1 GROUP=template-cluster … ./scripts/render.sh
 
 # assert an exact hash
-EXPECTED_SHA256=<sha256> GROUP=k8s-plus-cluster … ./scripts/render.sh
+EXPECTED_SHA256=<sha256> GROUP=template-cluster … ./scripts/render.sh
 ```
 
 Check the live NIM config against the recorded hash:
 
 ```bash
-GROUP=k8s-plus-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
+GROUP=template-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
   ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
 ```
 
@@ -242,8 +242,8 @@ digest stable.
 Hash any tree directly:
 
 ```bash
-python3 scripts/tree_hash.py rendered/k8s-plus-cluster
-python3 scripts/tree_hash.py groups/docker-plus-cluster \
+python3 scripts/tree_hash.py rendered/template-cluster
+python3 scripts/tree_hash.py groups/static-cluster \
   --exclude group.yaml
 ```
 
@@ -261,8 +261,8 @@ rendered diff and `nginx -t`.
 set. Both workflows set it.
 
 ```bash
-GROUP=k8s-plus-cluster \
-CONFIG_DIR=rendered/k8s-plus-cluster \
+GROUP=template-cluster \
+CONFIG_DIR=rendered/template-cluster \
 PRESERVE_AUX=1 \
 NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
 DRY_RUN=1 ./scripts/publish.sh
@@ -272,9 +272,9 @@ DRY_RUN=1 ./scripts/publish.sh
 
 - **Per-group managed set.** A publish is declarative over the group's tree; a file omitted from
   the payload is deleted on the members. Current modes:
-  - `docker-plus-cluster` (static): `nginx.conf`, `conf.d/site.conf`, `mime.types`. The template
+  - `static-cluster` (static): `nginx.conf`, `conf.d/site.conf`, `mime.types`. The template
     augment and `inputs.yaml` were removed; the classic tree is the only docker source.
-  - `k8s-plus-cluster` (template): `nginx.conf`, `mime.types`,
+  - `template-cluster` (template): `nginx.conf`, `mime.types`,
     `augments/http/<site-k8s>.conf`. The Plus API is image-provided at `conf.d/plus-api.conf`
     and is left alone; the `plus-api` augment is optional and **not** used here (using both
     produced a duplicate `127.0.0.1:9000` server).
@@ -299,7 +299,7 @@ DRY_RUN=1 ./scripts/publish.sh
   disappears.
 - **Never put a read-only mount or per-member divergence under `/etc/nginx`.** The agent rewrites
   the whole tree on apply, so per-instance TLS belongs outside it (see `/etc/nginx-tls` in
-  `k8s-plus-cluster`, stubbed by the syntax test).
+  `template-cluster`, stubbed by the syntax test).
 
 ## Repository configuration
 
