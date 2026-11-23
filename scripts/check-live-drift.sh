@@ -80,6 +80,10 @@ PY
 live=$(python3 scripts/tree_hash.py "$tmp/tree" --strip-template-tags \
   --normalize-endpoint "${NIM_MGMT_ENDPOINT:?set NIM_MGMT_ENDPOINT}" \
   | awk -F= '/^sha256=/{print $2}')
+mode=$(scripts/group-mode.sh "groups/$GROUP")
+if [ "$mode" = "static" ]; then
+  expected=$(python3 scripts/tree_hash.py "groups/$GROUP" --exclude group.yaml | awk -F= '/^sha256=/{print $2}')
+else
 if ! expected=$(python3 - "$HASH_FILE" "$GROUP" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
@@ -94,6 +98,7 @@ PY
 ); then
   echo "::error::no recorded render hash for $GROUP in $HASH_FILE"
   exit 3
+fi
 fi
 
 if [ "$live" != "$expected" ]; then

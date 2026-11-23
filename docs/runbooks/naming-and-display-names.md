@@ -7,8 +7,8 @@ group".
 |---|---|---|
 | NIM instance-group `name` | **No** (immutable after create) | `static-cluster`, `template-cluster` |
 | NIM instance-group `displayName` | Yes (`PATCH`) | `Docker Plus — static`, `K8s Plus — template` |
-| GitHub workflow display name | Yes (file + `name:`) | `nginx-config`, `nginx-template` |
-| GitHub workflow file | Yes | `.github/workflows/nginx-config.yml`, `nginx-template.yml` |
+| GitHub workflow display name | Yes (file + `name:`) | `nginx-static`, `nginx-template` |
+| GitHub workflow file | Yes | `.github/workflows/nginx-static.yml`, `nginx-template.yml` |
 
 ---
 
@@ -55,7 +55,8 @@ Current:
 
 | File | Workflow `name:` | Mode |
 |---|---|---|
-| `.github/workflows/nginx-config.yml` | `nginx-config` | static |
+| `.github/workflows/ci.yml` | `ci` | PR gate (`ci-gate`) |
+| `.github/workflows/nginx-static.yml` | `nginx-static` | static deploy |
 | `.github/workflows/nginx-template.yml` | `nginx-template` | template |
 
 Recommended:
@@ -71,8 +72,8 @@ Also make the publish job names distinct so the checks list does not show two id
 - static: `name: publish static ${{ matrix.group }}`
 - template: `name: publish template ${{ matrix.group }}`
 
-**Keep the `lint + nginx -t` job name.** Branch protection on `main` requires that exact status
-context:
+**The required check is `ci-gate`.** It is the aggregate gate in `ci.yml`; branch protection on
+`main` requires exactly that context:
 
 ```text
 required_status_checks: ["lint + nginx -t"]
@@ -83,16 +84,9 @@ job would require updating branch protection at the same time.
 
 ### Safe rename procedure
 
-1. `git mv .github/workflows/nginx-config.yml .github/workflows/nginx-static.yml`
-2. Change `name: nginx-config` to `name: nginx-static`.
-3. Optionally change `name: publish ${{ matrix.group }}` to
-   `name: publish static ${{ matrix.group }}`.
-4. Update README/docs references to `nginx-static.yml`.
-5. Run `actionlint`.
-6. PR: the required `lint + nginx -t` check still runs and passes (the workflow triggers on
-   `.github/workflows/**`).
-7. Merge. The old workflow disappears from the active list; historical runs stay under the old
-   name. The rename itself has no deploy side effect.
+The rename is already applied: the file is `nginx-static.yml`, `name: nginx-static`, and the
+publish job is `publish static ${{ matrix.group }}`. Keep the required context `ci-gate` in
+`ci.yml`; do not rename it without updating branch protection in the same change.
 
 The template workflow can take the same publish-job rename in the same PR. Do not rename
 `validate template groups` or `check live drift` unless you update the docs that reference them.
@@ -146,8 +140,7 @@ change is per-host; NIM group history is lost; automation and docs must be updat
 is not a cosmetic rename.
 
 **Recommendation:** the current names already encode the mode; keep them. Use `displayName` for
-labels, and rename the **workflows** to `nginx-static` / `nginx-template` if symmetry matters —
-that is safe and reversible.
+labels. The workflows are already `nginx-static` / `nginx-template`; keep them.
 
 ---
 
