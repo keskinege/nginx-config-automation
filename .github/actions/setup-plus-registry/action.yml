@@ -1,0 +1,24 @@
+name: setup plus registry
+description: Install the F5 registry client certificate and restart Docker
+inputs:
+  crt:
+    required: true
+  key:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        sudo mkdir -p /etc/docker/certs.d/private-registry.nginx.com
+        printf '%s' "${{ inputs.crt }}" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.cert >/dev/null
+        printf '%s' "${{ inputs.key }}" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.key >/dev/null
+        sudo chmod 600 /etc/docker/certs.d/private-registry.nginx.com/client.key
+        sudo systemctl restart docker
+        for _ in $(seq 1 30); do
+          sudo docker info >/dev/null 2>&1 && exit 0
+          sleep 1
+        done
+        echo "::error::Docker did not come back after the registry certificate install"
+        exit 1
