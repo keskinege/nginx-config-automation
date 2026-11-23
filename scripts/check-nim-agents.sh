@@ -34,8 +34,13 @@ if [ "$count" -eq 0 ]; then
   exit 1
 fi
 
-jq -r '.items[] | [.hostname, (.status.state // "unknown"), (.status.lastStatusReport // "")] | @tsv' <<<"$systems" \
-  | sed 's/^/agent: /'
+if [ "${VERBOSE:-0}" = "1" ]; then
+  jq -r '.items[] | [.hostname, (.status.state // "unknown"), (.status.lastStatusReport // "")] | @tsv' <<<"$systems" \
+    | sed 's/^/agent: /'
+else
+  jq -r '.items[] | (.status.state // "unknown")' <<<"$systems" \
+    | sort | uniq -c | sed 's/^/agent state: /'
+fi
 
 offline=$(jq -r '[.items[] | select((.status.state // "unknown") != "online")] | length' <<<"$systems")
 if [ "$offline" -gt 0 ]; then

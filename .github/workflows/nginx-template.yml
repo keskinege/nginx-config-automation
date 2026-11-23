@@ -1,23 +1,6 @@
 name: nginx-template
 
 on:
-  pull_request:
-    paths:
-      - "templates/**"
-      - "groups/**/inputs.yaml"
-      - "groups/**/group.yaml"
-      - ".nim/**"
-      - "scripts/render.sh"
-      - "scripts/tree_hash.py"
-      - "scripts/nginx-test-dir.sh"
-      - "scripts/publish.sh"
-      - "scripts/lint-inputs.py"
-      - "scripts/list-groups.sh"
-      - "scripts/sync_templates.py"
-      - "tests/**"
-      - "requirements-dev.txt"
-      - "pytest.ini"
-      - ".github/workflows/nginx-template.yml"
   push:
     branches: [main]
     paths:
@@ -25,6 +8,8 @@ on:
       - "groups/**/inputs.yaml"
       - "groups/**/group.yaml"
       - ".nim/**"
+      - "scripts/**"
+      - ".github/workflows/nginx-template.yml"
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
@@ -33,71 +18,17 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: validate template groups
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: install dev dependencies
-        run: pip install -r requirements-dev.txt
-
-      - name: install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: lint inputs
-        run: ./scripts/lint.sh
-
-      - name: pytest
-        run: pytest -q
-
-      - name: map the NIM name
-        run: echo "${{ secrets.NIM_HOST }} manager-server" | sudo tee -a /etc/hosts
-      - name: verify templates match NIM
-        env:
-          NIM_URL: ${{ secrets.NIM_URL }}
-          NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
-        run: python3 scripts/sync_templates.py --all --check
-
-      - name: render, lint and test every template group
-        env:
-          NIM_URL: ${{ secrets.NIM_URL }}
-          NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
-          NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
-        run: |
-          for g in $(./scripts/list-groups.sh template); do
-            GROUP="$g" OUT_DIR="rendered/$g" CHECK_HASH=1 \
-              HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
-            ./scripts/lint.sh --rendered "$g"
-            ./scripts/nginx-test-dir.sh "rendered/$g"
-          done
-
   drift:
     name: check live drift
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: check live drift for every template group
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup-yq
+      - name: drift every group
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
@@ -105,17 +36,25 @@ jobs:
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
         run: |
-          for g in $(./scripts/list-groups.sh template); do
-            GROUP="$g" ./scripts/check-live-drift.sh
+          rc=0
+          for g in $(./scripts/list-groups.sh); do
+            GROUP="$g" ./scripts/check-live-drift.sh || rc=1
           done
-
-      - name: check NIM agents are online
+          ./scripts/check-nim-agents.sh || rc=1
+          exit "$rc"
+      - name: open or update the drift issue
+        if: failure()
         env:
-          NIM_URL: ${{ secrets.NIM_URL }}
-          NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
-        run: ./scripts/check-nim-agents.sh
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          num=$(gh issue list --search 'NIM drift detected in:title' --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "New failure: $body"
+          else
+            gh issue create --title "NIM drift detected" --body "$body"
+          fi
 
   changed:
     name: detect changed template groups
@@ -124,15 +63,11 @@ jobs:
     outputs:
       groups: ${{ steps.detect.outputs.groups }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
 
-      - name: install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+      - uses: ./.github/actions/setup-yq
 
       - id: detect
         env:
@@ -161,15 +96,11 @@ jobs:
       matrix:
         group: ${{ fromJSON(needs.changed.outputs.groups) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         if: matrix.group != '-'
 
-      - name: install yq
+      - uses: ./.github/actions/setup-yq
         if: matrix.group != '-'
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
 
       - name: map the NIM name
         if: matrix.group != '-'
@@ -199,7 +130,7 @@ jobs:
 
       - name: upload backup artifact
         if: matrix.group != '-'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: nim-group-config-backup-${{ matrix.group }}-${{ github.run_id }}
           path: backup/${{ matrix.group }}

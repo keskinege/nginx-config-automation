@@ -7,7 +7,7 @@ A group is deployed in exactly one of two modes, set by `deploy_mode` in
 
 | Mode | Source of truth | Publisher | Workflow |
 |---|---|---|---|
-| `static` | `groups/<group>/*.conf` | `scripts/publish.sh` | `.github/workflows/nginx-config.yml` |
+| `static` | `groups/<group>/*.conf` | `scripts/publish.sh` | `.github/workflows/nginx-static.yml` |
 | `template` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `scripts/publish.sh` | `.github/workflows/nginx-template.yml` |
 
 The `deploy_mode` gate is the only thing that stops both workflows publishing the same group.
@@ -58,14 +58,16 @@ flowchart LR
 
 | File | Workflow `name` | Runs on | Jobs |
 |---|---|---|---|
-| `nginx-config.yml` | `nginx-config` | PR, push to `main`, manual | `lint + nginx -t`, `detect changed static groups`, `publish <group>` |
-| `nginx-template.yml` | `nginx-template` | PR, push to `main`, weekly schedule, manual | `validate template groups`, `check live drift`, `detect changed template groups`, `publish <group>` |
+| `ci.yml` | `ci` | PR, push to `main`, manual | `checks`, `static validation`, `template validation`, `ci-gate` |
+| `nginx-static.yml` | `nginx-static` | push to `main`, manual | `detect changed static groups`, `publish <group>` |
+| `nginx-template.yml` | `nginx-template` | push to `main`, weekly schedule, manual | `check live drift`, `detect changed template groups`, `publish <group>` |
 
-Branch protection on `main` requires the exact status context **`lint + nginx -t`**. Keep that job
-name when editing `nginx-config.yml`.
+Branch protection on `main` requires exactly one status context: **`ci-gate`**. It is an
+always-run aggregate, so a docs-only PR still reports it.
 
-Both publish jobs use the `nim` GitHub environment and the serialized concurrency group
-`nim-group-<group>`, so two runs never publish the same group at once.
+Publish jobs use the `nim` GitHub environment and the serialized concurrency group
+`nim-group-<group>`, so two runs never publish the same group at once. PR validation currently
+uses the repository `NIM_*` secrets; the scoped validator identity is not available yet.
 
 ## Change pipeline
 
@@ -87,20 +89,17 @@ flowchart TD
 
 ### On a pull request — validate, never publish
 
-Static (`nginx-config.yml`, job `lint + nginx -t`):
+`checks` (always): `pytest`, `./scripts/lint.sh`, `actionlint`, and the changed-path detection.
 
-1. `pytest -q`
-2. `./scripts/lint.sh` — invariants for every static group
-3. `./scripts/nginx-test.sh` — real `nginx -t` per static group (OSS image, Plus block neutralised)
-4. `actionlint`
+`static validation` (only when a static path changed): `./scripts/nginx-test.sh` — real `nginx -t`
+per static group (OSS image, Plus block neutralised).
 
-Template (`nginx-template.yml`, job `validate template groups`):
+`template validation` (only when a template path changed):
 
-1. `./scripts/lint.sh` and `pytest -q`
-2. `python3 scripts/sync_templates.py --all --check` — local templates must match NIM
-3. render every template group with `DRY_RUN=1`, then `CHECK_HASH=1` against
-   `.nim/rendered.lock.json`
-4. render for real and run `./scripts/nginx-test-dir.sh rendered/<group>`
+1. `python3 scripts/sync_templates.py --all --check` — local templates must match NIM
+2. `CHECK_HASH=1` render against `.nim/rendered.lock.json` (also writes the tree)
+3. `./scripts/lint.sh --rendered <group>`
+4. `./scripts/nginx-test-dir.sh rendered/<group>`
 
 ### On merge to `main` — publish only what changed
 
