@@ -126,6 +126,7 @@ jobs:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_USER: ${{ secrets.NIM_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
           GROUP: ${{ matrix.group }}
           OUT_DIR: backup/${{ matrix.group }}
           EXTERNAL_ID: ${{ github.sha }}
@@ -137,7 +138,7 @@ jobs:
         with:
           name: nim-group-config-backup-${{ matrix.group }}-${{ github.run_id }}
           path: backup/${{ matrix.group }}
-          retention-days: 90
+          retention-days: 7
           if-no-files-found: error
 
       - name: publish group tree with externalId = commit sha
