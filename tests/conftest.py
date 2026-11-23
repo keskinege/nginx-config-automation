@@ -96,6 +96,16 @@ def make_handler(state: MockNIM):
                 self._send(200, {"items": state.templates, "count": len(state.templates)})
             elif self.path == "/api/platform/v1/instance-groups":
                 self._send(200, {"items": [{"name": "test-group", "uid": "group-1"}]})
+            elif self.path == "/api/platform/v1/instance-groups/deployments/dep-1":
+                self._send(200, {
+                    "status": "successful",
+                    "details": {
+                        "success": [{"systemUID": "s1"}],
+                        "failure": [],
+                        "pending": [],
+                        "error": "",
+                    },
+                })
             elif self.path == "/api/platform/v1/systems":
                 self._send(200, {"items": state.systems})
             elif self.path == "/api/platform/v1/instance-groups/group-1/config":

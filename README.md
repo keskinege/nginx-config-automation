@@ -8,10 +8,10 @@ groups. A group is deployed in one of two modes:
 | `static` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `scripts/publish.sh` |
 
-Currently `static-cluster` is classic/static and `template-cluster` is template-managed.
-The static docker tree and the template inputs/augments are both retained so the group can move
-between modes with a `deploy_mode` flip. The per-group `deploy_mode` in `group.yaml` decides
-which workflow may publish it: exactly one.
+Currently `static-cluster` is classic/static and `template-cluster` is template-managed. The
+per-group `deploy_mode` in `group.yaml` decides which workflow may publish it: exactly one.
+`template-cluster` has no static tree; its rollback is a backup artifact replayed with
+`scripts/restore.sh` (see `docs/runbooks/rollback.md`).
 
 ## Layout
 
@@ -28,22 +28,15 @@ templates/
       meta.yaml
       http.tmpl
       http.json
-    plus-api/                  # optional; k8s image already provides conf.d/plus-api.conf
-      meta.yaml
-      http.tmpl
-      http.json
 groups/
   static-cluster/         # classic/static
     group.yaml                 # deploy_mode: static
     nginx.conf
     conf.d/site.conf
     mime.types
-  template-cluster/            # template-managed; static tree retained for rollback
+  template-cluster/            # template-managed; rollback via restore.sh
     group.yaml                 # deploy_mode: template
     inputs.yaml
-    nginx.conf
-    conf.d/plus-api.conf       # rollback copy; the image also provides this at runtime
-    mime.types
 .nim/
   templates.lock.json          # template name -> uid
   rendered.lock.json           # group -> render sha256/crc32
@@ -276,13 +269,12 @@ DRY_RUN=1 ./scripts/publish.sh
     augment and `inputs.yaml` were removed; the classic tree is the only docker source.
   - `template-cluster` (template): `nginx.conf`, `mime.types`,
     `augments/http/<site-k8s>.conf`. The Plus API is image-provided at `conf.d/plus-api.conf`
-    and is left alone; the `plus-api` augment is optional and **not** used here (using both
-    produced a duplicate `127.0.0.1:9000` server).
+    and is not in the tree; do not add a `plus-api` augment (it duplicates the
+    `127.0.0.1:9000` server).
   - `/etc/nginx/tls/tls.crt` on k8s is preserved as an **aux** file with `PRESERVE_AUX=1`.
 - **Static trees must be self-contained.** Every explicit `include /etc/nginx/<path>;` must
-  exist in the tree. The retained static trees include `mime.types` for rollback; without it,
-  rolling back after a template publish deletes the template-managed `mime.types` and
-  `nginx -t` fails.
+  exist in the tree; `static-cluster` carries `mime.types` for that reason. A template group has
+  no static tree: roll it back with `scripts/restore.sh`.
 - **Only online members receive a publish.** A reconnecting instance is synced to the last
   successful group publish.
 - **Offline members.** NIM stores the config but no member reports an outcome; `publish.sh`
