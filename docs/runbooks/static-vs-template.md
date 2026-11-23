@@ -80,10 +80,10 @@ Useful commands:
 ./scripts/lint.sh
 ./scripts/nginx-test-dir.sh groups/<group>
 GROUP=<group> CONFIG_DIR=groups/<group> PRESERVE_AUX=1 DRY_RUN=1 \
-  NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+  NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/publish.sh
 GROUP=<group> CONFIG_DIR=groups/<group> PRESERVE_AUX=1 \
   EXTERNAL_ID="$(git rev-parse HEAD)" \
-  NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+  NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/publish.sh
 ```
 
 ---
@@ -117,7 +117,7 @@ Useful commands:
 NIM_URL=… NIM_USER=… NIM_PASSWORD=… python3 scripts/sync_templates.py --all --check
 GROUP=<group> OUT_DIR=rendered/<group> WRITE_HASH=1 \
   HASH_FILE=.nim/rendered.lock.json \
-  NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/render.sh
+  NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/render.sh
 ./scripts/nginx-test-dir.sh rendered/<group>
 GROUP=<group> CHECK_HASH=1 HASH_FILE=.nim/rendered.lock.json \
   NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/render.sh
@@ -232,3 +232,7 @@ for template groups; all NIM systems online.
   the workflow composing the old template.
 - **Offline members look like a bad deploy.** NIM can report `successful` with empty `details`;
   check `GET /systems/{uid}` `.status.state` before rolling back.
+- **The mgmt endpoint is a placeholder.** `base.tmpl` and the static `nginx.conf` ship
+  `nim-mgmt-endpoint.invalid`; `render.sh` and `publish.sh` replace it from `NIM_MGMT_ENDPOINT` and
+  exit with an error if it is unset. Set `mgmt_endpoint` in `inputs.yaml` only to pin a different
+  value.
