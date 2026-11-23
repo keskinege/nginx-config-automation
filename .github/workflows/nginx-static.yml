@@ -1,17 +1,6 @@
-name: nginx-config
+name: nginx-static
 
 on:
-  pull_request:
-    paths:
-      - "groups/**"
-      - "scripts/**"
-      - "tests/**"
-      - "templates/**"
-      - "docs/**"
-      - "README.md"
-      - "requirements-dev.txt"
-      - "pytest.ini"
-      - ".github/workflows/**"
   push:
     branches: [main]
     paths:
@@ -28,39 +17,6 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: lint + nginx -t
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: install dev dependencies
-        run: pip install -r requirements-dev.txt
-
-      - name: install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: pytest
-        run: pytest -q
-
-      - name: lint every static group
-        run: ./scripts/lint.sh
-
-      - name: nginx -t for every static group (OSS; Plus block stripped)
-        run: ./scripts/nginx-test.sh
-
-      - name: actionlint
-        uses: docker://rhysd/actionlint:latest
-        with:
-          args: -color
-
   changed:
     name: detect changed static groups
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -68,15 +24,11 @@ jobs:
     outputs:
       groups: ${{ steps.detect.outputs.groups }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
 
-      - name: install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+      - uses: ./.github/actions/setup-yq
 
       - id: detect
         env:
@@ -93,7 +45,7 @@ jobs:
   publish:
     name: publish ${{ matrix.group }}
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: [lint, changed]
+    needs: [changed]
     runs-on: ubuntu-latest
     environment: nim
     concurrency:
@@ -105,7 +57,7 @@ jobs:
       matrix:
         group: ${{ fromJSON(needs.changed.outputs.groups) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         if: matrix.group != '-'
 
       - name: back up the config currently live on the group
@@ -123,7 +75,7 @@ jobs:
 
       - name: upload backup artifact
         if: matrix.group != '-'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: nim-group-config-backup-${{ matrix.group }}-${{ github.run_id }}
           path: backup/${{ matrix.group }}

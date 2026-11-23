@@ -4,7 +4,7 @@ A group is in exactly one mode, set by `deploy_mode` in `groups/<group>/group.ya
 
 | Mode | Workflow | Source | Publisher |
 |---|---|---|---|
-| `static` | `nginx-config.yml` | `groups/<group>/*.conf` | `scripts/publish.sh` |
+| `static` | `nginx-static.yml` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `nginx-template.yml` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `publish.sh` |
 
 `scripts/list-groups.sh static|template` is the source of truth for the CI matrix. Never let both
@@ -60,7 +60,7 @@ Current examples:
 
 ## 2. Static model
 
-1. `pull_request` → `nginx-config.yml` runs `pytest`, `lint.sh`, `nginx-test.sh`, `actionlint`.
+1. `pull_request` → `ci.yml` runs `pytest`, `lint.sh`, `nginx-test.sh`, `actionlint`.
 2. `push` to `main` → changed static groups are detected with `scripts/list-groups.sh static`.
 3. For each changed group: `backup-config.sh` → `publish.sh` with `CONFIG_DIR=groups/<group>`,
    `EXTERNAL_ID=github.sha`, `PRESERVE_AUX=1`.
@@ -181,7 +181,7 @@ GROUP=<group> NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/check-live-dri
    ```
 
 4. Set `deploy_mode: static`.
-5. Open a PR. `nginx-config.yml` runs `lint.sh` + `nginx-test.sh`; on merge the static workflow
+5. Open a PR. `ci.yml` runs `lint.sh` + `nginx-test.sh`; on merge the static workflow
    publishes the tree.
 6. Verify the live config and members. The template augment file is deleted; the classic `conf.d`
    file is restored; aux files are preserved by `PRESERVE_AUX=1`.
