@@ -41,7 +41,7 @@ decides which workflow may publish it.
 
    ```bash
    GROUP=<group> CONFIG_DIR=groups/<group> PRESERVE_AUX=1 DRY_RUN=1 \
-     NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+     NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/publish.sh
    ```
 
 5. Open a PR. On merge the static workflow publishes the changed group.
@@ -234,7 +234,6 @@ baseData:
     templateInput:
       worker_connections: "1024"
       require_mgmt: true
-      mgmt_endpoint: <instance-manager-endpoint>
       include_tls: false
   http:
     templateInput:
@@ -242,9 +241,10 @@ baseData:
 augmentData: []
 ```
 
-`mgmt_endpoint` is the NIM address the members report to; it must be reachable from the members,
-not from GitHub runners. Ensure the referenced templates exist in NIM
-(`sync_templates.py --check`), then render and test as in §3.
+Leave `mgmt_endpoint` out: the template emits `nim-mgmt-endpoint.invalid` and `render.sh` replaces
+it from `NIM_MGMT_ENDPOINT` (the NIM address members report to, reachable from members rather than
+from GitHub runners). Set `mgmt_endpoint` only to pin a different endpoint. Ensure the referenced
+templates exist in NIM (`sync_templates.py --check`), then render and test as in §3.
 
 ### 5.5 Members and first publish
 

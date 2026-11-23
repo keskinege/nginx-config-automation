@@ -25,5 +25,7 @@ to the repo; the runbooks are task-oriented.
 ## Conventions in these docs
 
 - Commands use `NIM_URL=… NIM_USER=… NIM_PASSWORD=…`; never commit a NIM host or credential.
+- Any command that renders or publishes also needs `NIM_MGMT_ENDPOINT`, which replaces the
+  `nim-mgmt-endpoint.invalid` placeholder in the `mgmt` block.
 - `<group>` and `<g>` are placeholders for a group directory name.
 - `…` in a command is a value you supply, not literal shell.

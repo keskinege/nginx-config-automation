@@ -120,7 +120,9 @@ otherwise `render.sh` composes the old NIM template and the hash does not change
 
 `templates/base/nginx-base/base.tmpl` preserves the repo invariants:
 
-- `mgmt { usage_report ... }` stays in main context when `require_mgmt` is true.
+- `mgmt { usage_report ... }` stays in main context when `require_mgmt` is true. Its endpoint is
+  the `nim-mgmt-endpoint.invalid` placeholder, substituted from `NIM_MGMT_ENDPOINT`; set
+  `mgmt_endpoint` in `inputs.yaml` only to pin a different value.
 - `include /etc/nginx/conf.d/*.conf;` always stays.
 - `include /etc/nginx-tls/server.conf;` is emitted only when `include_tls` is true.
 - `mime.types` is shipped as an aux file at `/etc/nginx/mime.types`.
@@ -301,7 +303,12 @@ DRY_RUN=1 ./scripts/publish.sh
 
 ## Repository configuration
 
-Secrets: `NIM_URL`, `NIM_USER`, `NIM_PASSWORD`.
+Secrets: `NIM_URL`, `NIM_USER`, `NIM_PASSWORD`, `NIM_MGMT_ENDPOINT`.
+
+`NIM_MGMT_ENDPOINT` replaces the `nim-mgmt-endpoint.invalid` placeholder in the `mgmt
+usage_report` line. `render.sh` replaces it in the composed tree before hashing; `publish.sh`
+replaces it in the payload before the POST. If a tree still contains the placeholder and the
+variable is unset, both scripts exit with an error rather than publishing an unusable endpoint.
 
 The NIM must be reachable from GitHub-hosted runners, which are not on the tailnet: a tailnet name
 resolves to a `100.x` address they cannot route, so `NIM_URL` points at an address the runners can
