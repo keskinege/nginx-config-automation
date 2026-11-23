@@ -4,12 +4,8 @@
       "/etc/nginx/mime.types": "6f95d1d7d75e3c072907d845622a69d23110d1266c16ff122b3109b8b21f3ae9",
       "README.md": "d1e5bb522e1afd82170a570e52e8f3c33f56ac4761b488246e8d97db99b86cab",
       "base.tmpl": "d18efbf4ac0189c8163f04e772b3ae8d55833af2ede73befb977a48562d7b1a3",
-      "http-server.json": "b9259ef54924b727160ae1e6874da0d7066f460f8deeae4f1c301bd8c2df68fd",
-      "http-upstream.json": "37b86dcd9355bf2cff1e7187174b176517ac95a6d99862ad90a3fa1ac20f6918",
       "http.json": "c14972f9f6173e411c41b4ac09432044f2c0e1cdad162245305c3c37699a5736",
-      "location.json": "1615a5495d7d7d8e8cfde626969c55b254d43a248b1dbe0c550d06fae82dceb7",
-      "main.json": "45babeadf99869997248ea4e4d31c4540b562dc969bf1758db624af6280a51e1",
-      "stream.json": "dd719110a3e3dcbd63e0c9be4c7f191b74ba3b6e2d1bff2ac08ee98536e19571"
+      "main.json": "45babeadf99869997248ea4e4d31c4540b562dc969bf1758db624af6280a51e1"
     },
     "uid": "942a6e96-fcfe-4f87-ad58-545abab7996b"
   },

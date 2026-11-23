@@ -20,7 +20,7 @@ templates/
   base/nginx-base/
     meta.yaml                  # name, type, state, files (source -> target)
     base.tmpl                  # full config + augment injection points
-    main.json http.json http-server.json http-upstream.json location.json stream.json
+    main.json http.json
     README.md
     aux/etc/nginx/mime.types   # shipped as /etc/nginx/mime.types
   augments/
