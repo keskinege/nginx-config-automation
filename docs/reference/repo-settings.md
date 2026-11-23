@@ -15,17 +15,17 @@ job, but `ci-gate` still reports.
 |---|---|---|
 | `NIM_URL` | repository | `https://manager-server` (the certificate SAN) |
 | `NIM_HOST` | repository | address a GitHub runner can reach; used by `--resolve` and `/etc/hosts` |
-| `NIM_USER` | repository | `admin` |
-| `NIM_PASSWORD` | repository | the local admin password |
+| `NIM_USER` / `NIM_PASSWORD` | **`nim` environment** (`main` only) | the local `admin` credential; publish jobs only |
+| `NIM_VALIDATOR_USER` / `NIM_VALIDATOR_PASSWORD` | repository | `ci-validator`: templates/groups read + compose; no publish or user management |
 | `NIM_MGMT_ENDPOINT` | repository | `mgmt usage_report` endpoint, substituted at render/publish |
 | `NGINX_REPO_CRT` | repository | F5 registry client certificate (`nginx-repo.crt`) |
 | `NGINX_REPO_KEY` | repository | F5 registry client key (`nginx-repo.key`) |
 | `NGINX_PLUS_JWT` | repository | runtime NGINX Plus license for `nginx -t` |
 
-The `nim` environment exists and both publish jobs use it, but it has no protection rules yet.
-PR validation reads the repository `NIM_*` secrets. NIM exposes only the local `admin` identity
-(`CreateUser` has no password field and the htpasswd has one entry), so a scoped validator account
-is a known follow-up. Until then, repository write access is NIM-admin equivalent.
+The `nim` environment allows deployment only from `main`; it holds the admin credential for the
+publish and drift jobs. PR validation uses `ci-validator`, a separate htpasswd entry plus a NIM role
+limited to `TEMPLATES: READ`, `TEMPLATE-SUBMISSIONS: READ` and `INSTANCE-GROUPS: READ`. It can
+compose but cannot publish, delete a group, or manage users.
 
 ## Public-repo files
 
