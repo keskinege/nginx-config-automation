@@ -14,6 +14,11 @@ to the repo; the runbooks are task-oriented.
 | [reference/environments.md](reference/environments.md) | Where the production NIM runs, the CA and names, the groups and their members. |
 | [reference/repo-settings.md](reference/repo-settings.md) | `ci-gate`, secrets, the `nim` environment, and the public-repo files. |
 | [reference/exit-codes.md](reference/exit-codes.md) | What each script's exit code means. |
+| [reference/options.md](reference/options.md) | Every environment variable and flag. |
+| [reference/public-files.md](reference/public-files.md) | License, security policy, owners, and the no-host rule. |
+| [runbooks/lock-regeneration.md](runbooks/lock-regeneration.md) | Update `.nim/rendered.lock.json` after a template or input change. |
+| [runbooks/decommission.md](runbooks/decommission.md) | Retire a group without stranding members. |
+| [runbooks/troubleshooting.md](runbooks/troubleshooting.md) | Offline members, publish timeouts, drift, 412, TLS and registry errors. |
 
 ## The 60-second version
 
