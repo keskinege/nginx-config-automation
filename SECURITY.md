@@ -14,6 +14,6 @@ this repository, or contact the maintainer listed in `CODEOWNERS`.
   an artifact, a manifest or a log. Report any that you find as a vulnerability.
 - Published NIM configs are declarative. A group's managed set is exactly the files in
   `groups/<group>/`, or the files rendered from `templates/` plus `groups/<group>/inputs.yaml`.
-- PR validation currently uses the repository `NIM_*` secrets because NIM exposes only the local
-  `admin` identity. A scoped validator account is a known follow-up; treat repository write access
-  as NIM admin equivalent until it exists.
+- PR validation uses the `ci-validator` identity, which can read templates and instance groups and
+  compose, but cannot publish, delete groups, or manage users. The admin credential lives in the
+  `nim` GitHub environment with a `main`-only branch policy.
