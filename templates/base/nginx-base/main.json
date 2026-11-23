@@ -34,7 +34,7 @@
           "title": "Mgmt endpoint",
           "type": "string",
           "examples": [
-            "ovh-fr.tail7fa79.ts.net"
+            "nim-mgmt-endpoint.invalid"
           ]
         },
         "include_tls": {

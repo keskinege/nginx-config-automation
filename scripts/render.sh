@@ -27,6 +27,9 @@
 #   HASH_FILE         hash lock path (default .nim/rendered.lock.json).
 #   WRITE_LOCK=1      merge resolved name -> uid pairs into .nim/templates.lock.json.
 #   ROOT_DIR          managed root used to shorten absolute paths (default /etc/nginx).
+#   NIM_MGMT_ENDPOINT replaces the mgmt "nim-mgmt-endpoint.invalid" placeholder in the
+#                     rendered tree. Required whenever the tree still contains it.
+#   MGMT_PLACEHOLDER  placeholder text to replace (default nim-mgmt-endpoint.invalid).
 #   INPUTS            explicit inputs file (default groups/$GROUP/inputs.{yaml,json}).
 #   OUT_DIR           output directory (default rendered/$GROUP).
 #
@@ -65,6 +68,8 @@ WRITE_HASH="${WRITE_HASH:-0}"
 HASH_FILE="${HASH_FILE:-.nim/rendered.lock.json}"
 EXPECTED_SHA256="${EXPECTED_SHA256:-}"
 WRITE_LOCK="${WRITE_LOCK:-0}"
+NIM_MGMT_ENDPOINT="${NIM_MGMT_ENDPOINT:-}"
+MGMT_PLACEHOLDER="${MGMT_PLACEHOLDER:-nim-mgmt-endpoint.invalid}"
 BASE="${NIM_URL%/}/api/platform/v1"
 
 case "$OUT_DIR" in
@@ -209,11 +214,17 @@ fi
 # 5. hash, optionally compare/record, then write the tree + manifest
 python3 - "$tmp/resp.json" "$OUT_DIR" "$ROOT_DIR" "$GROUP" "$INPUTS" \
   "$tmp/body.json" "$tmp/resolved.json" "$HASH_FILE" "$MODE" \
-  "$DRY_RUN" "$HASH_ONLY" "$CHECK_HASH" "$WRITE_HASH" "$EXPECTED_SHA256" <<'PY'
+  "$DRY_RUN" "$HASH_ONLY" "$CHECK_HASH" "$WRITE_HASH" "$EXPECTED_SHA256" \
+  "$NIM_MGMT_ENDPOINT" "$MGMT_PLACEHOLDER" <<'PY'
 import base64, datetime, hashlib, json, pathlib, shutil, sys
 
 (resp_path, out_dir, root_dir, group, inputs_path, body_path, resolved_path,
- hash_file, mode, dry_run, hash_only, check_hash, write_hash, expected_sha) = sys.argv[1:15]
+ hash_file, mode, dry_run, hash_only, check_hash, write_hash, expected_sha,
+ mgmt_endpoint, mgmt_placeholder) = sys.argv[1:17]
+
+def fail(message, code=1):
+    print(message, file=sys.stderr)
+    sys.exit(code)
 
 # Reuse the canonical tree hash so `tree_hash.py` and `render.sh` agree.
 sys.path.insert(0, str(pathlib.Path("scripts").resolve()))
@@ -248,14 +259,24 @@ for section in ("configFiles", "auxFiles"):
             raise SystemExit(f"duplicate config path with different contents: {rel}")
         files[rel] = data
 
+# The template ships a documented placeholder for the mgmt endpoint. Replace it
+# here, before hashing, so the lock, the written tree, and what CI publishes all
+# describe the same bytes. A group may instead set mgmt_endpoint in its inputs.
+placeholder = mgmt_placeholder.encode()
+endpoint = mgmt_endpoint.encode()
+if endpoint:
+    files = {rel: data.replace(placeholder, endpoint) for rel, data in files.items()}
+elif any(placeholder in data for data in files.values()):
+    fail(
+        f"::error::rendered tree still contains {mgmt_placeholder!r}; "
+        "set NIM_MGMT_ENDPOINT (or set mgmt_endpoint in the group inputs)",
+        4,
+    )
+
 info = hash_files(files, strip_template_tags=True)
 body_digest = hashlib.sha256(pathlib.Path(body_path).read_bytes()).hexdigest()
 resolved = json.loads(pathlib.Path(resolved_path).read_text())
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-def fail(message, code=1):
-    print(message, file=sys.stderr)
-    sys.exit(code)
 
 if expected_sha and expected_sha != info["sha256"]:
     fail(

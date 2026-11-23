@@ -5,7 +5,6 @@ baseData:
       worker_connections: "1024"
       keepalive_timeout: "80"
       require_mgmt: true
-      mgmt_endpoint: ovh-fr.tail7fa79.ts.net
       include_tls: true
   http:
     templateInput:

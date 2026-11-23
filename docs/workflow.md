@@ -133,7 +133,7 @@ Template (`nginx-template.yml`, job `validate template groups`):
    ./scripts/lint.sh
    ./scripts/nginx-test-dir.sh groups/<group>
    GROUP=<group> CONFIG_DIR=groups/<group> PRESERVE_AUX=1 DRY_RUN=1 \
-     NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+     NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/publish.sh
    ```
 
 5. Open a PR. On merge the static workflow publishes the changed group.
@@ -167,7 +167,7 @@ flowchart LR
 
    ```bash
    GROUP=<group> OUT_DIR=rendered/<group> WRITE_HASH=1 HASH_FILE=.nim/rendered.lock.json \
-     NIM_URL=… NIM_USER=… NIM_PASSWORD=… ./scripts/render.sh
+     NIM_URL=… NIM_USER=… NIM_PASSWORD=… NIM_MGMT_ENDPOINT=… ./scripts/render.sh
    ```
 
 4. Inspect and test the composed tree:
@@ -182,6 +182,17 @@ flowchart LR
 
 The lock hash is computed with `tree_hash.py --strip-template-tags` because NIM emits a
 nondeterministic `# __templateTag=...` comment naming whichever augment was composed last.
+
+### The mgmt endpoint
+
+`mgmt { usage_report endpoint=...; }` ships with the placeholder `nim-mgmt-endpoint.invalid`.
+Both `render.sh` and `publish.sh` replace it with `$NIM_MGMT_ENDPOINT` before hashing and before the
+POST, so the lock, the written tree, and the live config agree. If a tree still contains the
+placeholder and the variable is unset, the script exits with an error.
+
+A group can instead set `mgmt_endpoint` in `inputs.yaml`; an explicit value is used as-is and no
+substitution happens. `NIM_MGMT_ENDPOINT` is a repository secret, available to every job that has
+`environment: nim`.
 
 ### Publish sequence
 
@@ -211,6 +222,7 @@ sequenceDiagram
 ## Verification
 
 ```bash
+export NIM_MGMT_ENDPOINT=…                  # needed by render.sh and publish.sh
 ./scripts/lint.sh
 ./scripts/nginx-test.sh                      # static groups
 ./scripts/nginx-test-dir.sh rendered/<g>     # template group

@@ -49,15 +49,23 @@ UPDATE_TIME=$(jq -r '.updateTime // .createTime' <<<"$CURRENT_CONFIG")
 [ -n "$UPDATE_TIME" ] && [ "$UPDATE_TIME" != "null" ] || { echo "::error::could not read group config updateTime"; exit 1; }
 
 PRESERVE_AUX="${PRESERVE_AUX:-0}"
+# Replace the documented mgmt-endpoint placeholder before the payload is sent.
+# Required whenever a file still contains it; set MGMT_PLACEHOLDER to override.
+NIM_MGMT_ENDPOINT="${NIM_MGMT_ENDPOINT:-}"
+MGMT_PLACEHOLDER="${MGMT_PLACEHOLDER:-nim-mgmt-endpoint.invalid}"
 if [ "$PRESERVE_AUX" = "1" ]; then
   AUX_FILES=$(jq -c '.auxFiles // {"rootDir":"/","files":[]}' <<<"$CURRENT_CONFIG")
 else
   AUX_FILES='{"rootDir":"/","files":[]}'
 fi
 
-python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$EXTERNAL_ID_TYPE" "$AUX_FILES" > /tmp/payload.json <<'PY'
+python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$EXTERNAL_ID_TYPE" "$AUX_FILES" \
+  "$NIM_MGMT_ENDPOINT" "$MGMT_PLACEHOLDER" > /tmp/payload.json <<'PY'
 import base64, json, os, sys
-config_dir, root, update_time, external_id, external_id_type, aux_json = sys.argv[1:7]
+(config_dir, root, update_time, external_id, external_id_type, aux_json,
+ mgmt_endpoint, mgmt_placeholder) = sys.argv[1:9]
+placeholder = mgmt_placeholder.encode()
+endpoint = mgmt_endpoint.encode()
 files = []
 EXCLUDED = {"group.yaml", "inputs.yaml", "render-manifest.txt", ".DS_Store"}
 for dirpath, _, names in os.walk(config_dir):
@@ -66,9 +74,17 @@ for dirpath, _, names in os.walk(config_dir):
         rel = os.path.relpath(full, config_dir).replace(os.sep, "/")
         if rel in EXCLUDED or name.startswith(".") or name.endswith(".lock.json"):
             continue
+        data = open(full, "rb").read()
+        if endpoint:
+            data = data.replace(placeholder, endpoint)
+        elif placeholder in data:
+            raise SystemExit(
+                f"::error::{rel} still contains {mgmt_placeholder!r}; "
+                "set NIM_MGMT_ENDPOINT (or MGMT_PLACEHOLDER)"
+            )
         files.append({
             "name": f"{root}/{rel}",
-            "contents": base64.b64encode(open(full, "rb").read()).decode(),
+            "contents": base64.b64encode(data).decode(),
         })
 files.sort(key=lambda f: f["name"])
 print(json.dumps({
