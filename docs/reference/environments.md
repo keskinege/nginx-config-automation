@@ -35,7 +35,7 @@ on.
 
 `private-registry.nginx.com` authenticates with the **client certificate** `nginx-repo.crt`/`.key`,
 not a JWT. CI installs it from `NGINX_REPO_CRT`/`NGINX_REPO_KEY`, restarts Docker, and pulls
-`nginx-plus/agent:nginx-plus-20261118`. The runtime license is `NGINX_PLUS_JWT`; the old
+`nginx-plus/agent:nginx-plus-20261118`. The runtime license is `NGINX_PLUS_JWT` (the current lab subscription license); the old
 `license.jwt` export is expired.
 
 ## Instance groups and members
