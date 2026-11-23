@@ -27,12 +27,12 @@ import sys
 import zlib
 
 PREFIX = b"nginx-config-tree-v1\0"
-EXCLUDED = {"render-manifest.txt", "render-lock.json", ".DS_Store"}
+EXCLUDED = {"render-manifest.txt", ".DS_Store"}
 ENDPOINT_PLACEHOLDER = b"nim-mgmt-endpoint.invalid"
 
 
 def _is_excluded(rel: str, name: str, patterns: tuple[str, ...]) -> bool:
-    if name in EXCLUDED:
+    if name in EXCLUDED or name.endswith(".lock.json"):
         return True
     for pattern in patterns:
         if fnmatch.fnmatch(rel, pattern) or fnmatch.fnmatch(name, pattern):
