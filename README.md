@@ -133,7 +133,6 @@ baseData:
     templateInput:
       worker_connections: "1024"
       require_mgmt: true
-      mgmt_endpoint: <instance-manager-endpoint>   # supplied per group; must be reachable from members
       include_tls: true
   http:
     templateInput:
@@ -211,8 +210,8 @@ EXPECTED_SHA256=<sha256> GROUP=template-cluster … ./scripts/render.sh
 Check the live NIM config against the recorded hash:
 
 ```bash
-GROUP=template-cluster NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
-  ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
+GROUP=template-cluster NIM_URL=… NIM_HOST=… NIM_MGMT_ENDPOINT=… \
+  NIM_USER=… NIM_PASSWORD=… ./scripts/check-live-drift.sh   # 0 no drift, 2 drift, 3 no recorded hash
 ```
 
 `check-live-drift.sh` compares **configFiles only**; preserved aux files (such as
@@ -257,8 +256,8 @@ set. Both workflows set it.
 GROUP=template-cluster \
 CONFIG_DIR=rendered/template-cluster \
 PRESERVE_AUX=1 \
-NIM_URL=… NIM_USER=… NIM_PASSWORD=… \
-DRY_RUN=1 ./scripts/publish.sh
+NIM_URL=… NIM_HOST=… NIM_MGMT_ENDPOINT=… \
+NIM_USER=… NIM_PASSWORD=… DRY_RUN=1 ./scripts/publish.sh
 ```
 
 ## Semantics you must know
@@ -295,7 +294,7 @@ DRY_RUN=1 ./scripts/publish.sh
 
 ## Repository configuration
 
-Secrets: `NIM_URL`, `NIM_USER`, `NIM_PASSWORD`, `NIM_MGMT_ENDPOINT`.
+Secrets: `NIM_URL` (`https://manager-server`), `NIM_HOST`, `NIM_USER`, `NIM_PASSWORD`, `NIM_MGMT_ENDPOINT`.
 
 `NIM_MGMT_ENDPOINT` replaces the `nim-mgmt-endpoint.invalid` placeholder in the `mgmt
 usage_report` line. `render.sh` replaces it in the composed tree before hashing; `publish.sh`

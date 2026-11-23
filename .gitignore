@@ -1,5 +1,3 @@
-/out/
-/payload.json
 /rendered/
 __pycache__/
 *.pyc

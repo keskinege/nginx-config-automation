@@ -4,9 +4,9 @@
 #   GROUP=static-cluster ./scripts/publish.sh
 #
 # The payload is declarative for the files NIM manages on that group: omitting a
-# file that was published before DELETES it on the members. Each group tree must
-# therefore carry every file the group owns — including ones the image also ships
-# (e.g. conf.d/plus-api.conf), because those ARE managed once published.
+# file that was published before DELETES it on the members. Every file in
+# CONFIG_DIR is managed; a file the image also ships (e.g. conf.d/plus-api.conf)
+# must be in CONFIG_DIR if you intend to own it.
 set -euo pipefail
 
 : "${NIM_URL:?set NIM_URL}"

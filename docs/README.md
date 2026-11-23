@@ -9,6 +9,11 @@ to the repo; the runbooks are task-oriented.
 | [runbooks/adding-configs-sites-and-clusters.md](runbooks/adding-configs-sites-and-clusters.md) | You are adding a config file, a site/server block, a template augment, or a whole cluster. |
 | [runbooks/static-vs-template.md](runbooks/static-vs-template.md) | You need to choose a mode, or switch a group between static and template. |
 | [runbooks/naming-and-display-names.md](runbooks/naming-and-display-names.md) | You are changing group, display, or workflow names — and need to know what is immutable. |
+| [runbooks/rollback.md](runbooks/rollback.md) | A publish went wrong: restore a template group from a backup, or re-publish a static tree. |
+| [reference/prerequisites.md](reference/prerequisites.md) | Tool versions, the mikefarah-vs-Python `yq` trap, and the Plus-image status. |
+| [reference/environments.md](reference/environments.md) | Where the production NIM runs, the CA and names, the groups and their members. |
+| [reference/repo-settings.md](reference/repo-settings.md) | `ci-gate`, secrets, the `nim` environment, and the public-repo files. |
+| [reference/exit-codes.md](reference/exit-codes.md) | What each script's exit code means. |
 
 ## The 60-second version
 
