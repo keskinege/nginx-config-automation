@@ -15,8 +15,8 @@ Never remove it and never let two workflows own one group.
 
 Current groups:
 
-- `docker-plus-cluster` — **static**; payload `nginx.conf`, `conf.d/site.conf`, `mime.types`.
-- `k8s-plus-cluster` — **template**; `nginx-base` + `site-k8s`, with `/etc/nginx/tls/tls.crt`
+- `static-cluster` — **static**; payload `nginx.conf`, `conf.d/site.conf`, `mime.types`.
+- `template-cluster` — **template**; `nginx-base` + `site-k8s`, with `/etc/nginx/tls/tls.crt`
   preserved as an aux file.
 
 ## At a glance
@@ -35,8 +35,8 @@ flowchart LR
     end
 
     subgraph nim["NGINX Instance Manager"]
-        G1["docker-plus-cluster<br/>static mode"]
-        G2["k8s-plus-cluster<br/>template mode"]
+        G1["static-cluster<br/>static mode"]
+        G2["template-cluster<br/>template mode"]
     end
 
     subgraph members["Group members"]

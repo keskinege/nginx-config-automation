@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Render one group's config tree from NIM config templates + variables.
 #
-#   GROUP=docker-plus-cluster \
+#   GROUP=static-cluster \
 #   NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… \
 #   ./scripts/render.sh
 #

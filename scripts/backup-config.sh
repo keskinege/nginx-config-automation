@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Snapshot the CURRENT config of one instance group from NIM before publishing.
 #
-#   GROUP=k8s-plus-cluster OUT_DIR=backup/k8s-plus-cluster ./scripts/backup-config.sh
+#   GROUP=template-cluster OUT_DIR=backup/template-cluster ./scripts/backup-config.sh
 #
 # This is the "real server" side: what the members are running now, as NIM holds
 # it — not what this repo says. Uploaded as a workflow artifact so a bad publish

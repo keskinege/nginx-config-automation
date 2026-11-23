@@ -17,7 +17,7 @@ to the repo; the runbooks are task-oriented.
    plus `groups/<group>/inputs.yaml`.
 3. A pull request only validates. A push to `main` publishes the changed groups with
    `externalId = <commit SHA>`.
-4. `docker-plus-cluster` is static; `k8s-plus-cluster` is template.
+4. `static-cluster` is static; `template-cluster` is template.
 
 > The directory name **is** the NIM instance-group name, and that name is immutable. Use
 > `deploy_mode` and `displayName` to express the mode, not the group name.
