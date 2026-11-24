@@ -66,3 +66,32 @@ def test_backup_requires_the_endpoint(mock_nim, tmp_path):
         assert "set NIM_MGMT_ENDPOINT" in result.stderr
     finally:
         shutil.rmtree(group, ignore_errors=True)
+
+
+def test_backup_redacts_an_endpoint_that_differs_from_the_secret(mock_nim, tmp_path):
+    group = REPO / "groups" / "test-group"
+    group.mkdir(parents=True, exist_ok=True)
+    try:
+        out = tmp_path / "backup"
+        # The live config holds real.example; the secret now holds a different value.
+        result = run_backup(mock_nim, out, NIM_MGMT_ENDPOINT="rotated.example")
+        assert result.returncode == 0, result.stderr
+        config = (out / "etc/nginx/nginx.conf").read_text()
+        assert "real.example" not in config
+        assert "rotated.example" not in config
+        assert "nim-mgmt-endpoint.invalid" in config
+    finally:
+        shutil.rmtree(group, ignore_errors=True)
+
+
+def test_backup_does_not_upload_the_group_document(mock_nim, tmp_path):
+    group = REPO / "groups" / "test-group"
+    group.mkdir(parents=True, exist_ok=True)
+    try:
+        out = tmp_path / "backup"
+        result = run_backup(mock_nim, out, NIM_MGMT_ENDPOINT="real.example")
+        assert result.returncode == 0, result.stderr
+        assert not (out / "group.json").exists()
+        assert "members=" in (out / "manifest.txt").read_text()
+    finally:
+        shutil.rmtree(group, ignore_errors=True)
