@@ -27,7 +27,7 @@ API:
 
 ```bash
 BASE="${NIM_URL%/}/api/platform/v1"
-AUTH=(-sk -u "$NIM_USER:$NIM_PASSWORD")
+AUTH=(--cacert certs/nim-ca.pem --resolve "manager-server:443:$NIM_HOST" -u "$NIM_USER:$NIM_PASSWORD")
 
 # Look up the uid by name first
 curl "${AUTH[@]}" "$BASE/instance-groups" \
@@ -66,17 +66,14 @@ Recommended:
 | `.github/workflows/nginx-static.yml` | `nginx-static` | symmetric with `nginx-template`; drops the legacy "config" |
 | `.github/workflows/nginx-template.yml` | `nginx-template` | already clear |
 
-Also make the publish job names distinct so the checks list does not show two identical
-`publish <group>` entries:
-
-- static: `name: publish static ${{ matrix.group }}`
-- template: `name: publish template ${{ matrix.group }}`
+Both workflows name the job `publish ${{ matrix.group }}`; the workflow name (`nginx-static`,
+`nginx-template`) keeps the checks list unambiguous.
 
 **The required check is `ci-gate`.** It is the aggregate gate in `ci.yml`; branch protection on
 `main` requires exactly that context:
 
 ```text
-required_status_checks: ["lint + nginx -t"]
+required_status_checks: ["ci-gate"]
 ```
 
 Renaming the workflow `name:` or the file does not change the check context. Renaming the `lint`
@@ -85,11 +82,11 @@ job would require updating branch protection at the same time.
 ### Safe rename procedure
 
 The rename is already applied: the file is `nginx-static.yml`, `name: nginx-static`, and the
-publish job is `publish static ${{ matrix.group }}`. Keep the required context `ci-gate` in
+publish job is `publish ${{ matrix.group }}` (the workflow name distinguishes them). Keep the required context `ci-gate` in
 `ci.yml`; do not rename it without updating branch protection in the same change.
 
-The template workflow can take the same publish-job rename in the same PR. Do not rename
-`validate template groups` or `check live drift` unless you update the docs that reference them.
+The `template` job is named `template validation`. Do not rename `ci-gate` without updating
+branch protection in the same change.
 
 ---
 
@@ -102,7 +99,7 @@ steps for any future rename:
 1. Create the new group:
 
    ```bash
-   curl -sk -u "$NIM_USER:$NIM_PASSWORD" -X POST "$BASE/instance-groups" \
+   curl --cacert certs/nim-ca.pem --resolve "manager-server:443:$NIM_HOST" -u "$NIM_USER:$NIM_PASSWORD" -X POST "$BASE/instance-groups" \
      -H 'Content-Type: application/json' \
      -d '{"name":"<new-name>","displayName":"<New Name>"}'
    ```
@@ -126,7 +123,7 @@ steps for any future rename:
 5. Delete the old group:
 
    ```bash
-   curl -sk -u "$NIM_USER:$NIM_PASSWORD" -X DELETE "$BASE/instance-groups/<old-uid>"
+   curl --cacert certs/nim-ca.pem --resolve "manager-server:443:$NIM_HOST" -u "$NIM_USER:$NIM_PASSWORD" -X DELETE "$BASE/instance-groups/<old-uid>"
    ```
 
    NIM returns `412` while agents still name the old group.

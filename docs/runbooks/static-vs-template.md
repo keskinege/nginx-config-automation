@@ -7,8 +7,9 @@ A group is in exactly one mode, set by `deploy_mode` in `groups/<group>/group.ya
 | `static` | `nginx-static.yml` | `groups/<group>/*.conf` | `scripts/publish.sh` |
 | `template` | `nginx-template.yml` | `templates/` + `groups/<group>/inputs.yaml` | `scripts/render.sh` → `publish.sh` |
 
-`scripts/list-groups.sh static|template` is the source of truth for the CI matrix. Never let both
-workflows publish one group: the mode gate is the only thing preventing last-writer-wins.
+`scripts/detect-groups.sh <mode> BEFORE SHA EVENT` is what CI uses; `scripts/list-groups.sh
+<mode>` lists every group in that mode. Never let both workflows publish one group: the mode
+gate is the only thing preventing last-writer-wins.
 
 ---
 
@@ -61,7 +62,7 @@ Current examples:
 ## 2. Static model
 
 1. `pull_request` → `ci.yml` runs `pytest`, `lint.sh`, `nginx-test.sh`, `actionlint`.
-2. `push` to `main` → changed static groups are detected with `scripts/list-groups.sh static`.
+2. `push` to `main` → `scripts/detect-groups.sh static` selects the changed static groups.
 3. For each changed group: `backup-config.sh` → `publish.sh` with `CONFIG_DIR=groups/<group>`,
    `EXTERNAL_ID=github.sha`, `PRESERVE_AUX=1`.
 
