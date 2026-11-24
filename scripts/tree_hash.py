@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import sys
 import zlib
 
@@ -40,12 +41,23 @@ def _is_excluded(rel: str, name: str, patterns: tuple[str, ...]) -> bool:
     return False
 
 
+USAGE_ENDPOINT = re.compile(rb"(usage_report[ \t]+endpoint=)([^;\s]+)")
+
+
 def normalize_endpoint(files: dict[str, bytes], real: str) -> dict[str, bytes]:
     if not real:
         return files
     needle = real.encode()
-    return {name: data.replace(needle, ENDPOINT_PLACEHOLDER)
-            for name, data in files.items()}
+
+    def rewrite(data: bytes) -> bytes:
+        def repl(match) -> bytes:
+            if match.group(2) == needle:
+                return match.group(1) + ENDPOINT_PLACEHOLDER
+            return match.group(0)
+
+        return USAGE_ENDPOINT.sub(repl, data)
+
+    return {name: rewrite(data) for name, data in files.items()}
 
 
 def _strip_template_tags(data: bytes) -> bytes:

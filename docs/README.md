@@ -11,11 +11,10 @@ to the repo; the runbooks are task-oriented.
 | [runbooks/naming-and-display-names.md](runbooks/naming-and-display-names.md) | You are changing group, display, or workflow names — and need to know what is immutable. |
 | [runbooks/rollback.md](runbooks/rollback.md) | A publish went wrong: restore a template group from a backup, or re-publish a static tree. |
 | [reference/prerequisites.md](reference/prerequisites.md) | Tool versions, the mikefarah-vs-Python `yq` trap, and the Plus-image status. |
-| [reference/environments.md](reference/environments.md) | Where the production NIM runs, the CA and names, the groups and their members. |
-| [reference/repo-settings.md](reference/repo-settings.md) | `ci-gate`, secrets, the `nim` environment, and the public-repo files. |
+| [reference/environments.md](reference/environments.md) | The connection contract: SAN, `NIM_URL`/`NIM_HOST`/`NIM_CA`, registry auth. Infrastructure detail lives in the private operations repository. |
+| [reference/repo-settings.md](reference/repo-settings.md) | Branch protection, secrets and their scope, public-repo files and rules, artifact retention. |
 | [reference/exit-codes.md](reference/exit-codes.md) | What each script's exit code means. |
 | [reference/options.md](reference/options.md) | Every environment variable and flag. |
-| [reference/public-files.md](reference/public-files.md) | License, security policy, owners, and the no-host rule. |
 | [runbooks/lock-regeneration.md](runbooks/lock-regeneration.md) | Update `.nim/rendered.lock.json` after a template or input change. |
 | [runbooks/decommission.md](runbooks/decommission.md) | Retire a group without stranding members. |
 | [runbooks/troubleshooting.md](runbooks/troubleshooting.md) | Offline members, publish timeouts, drift, 412, TLS and registry errors. |

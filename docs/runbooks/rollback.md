@@ -30,18 +30,35 @@ publish.
 
    Expected `drift: none`, and each member passes `nginx -t`.
 
+5. **Revert the bad commit in a PR.** `restore.sh` only changes what NIM holds; `main` still
+   carries the bad change, so the next drift check reports it and the next push re-publishes it.
+   Open `git revert <bad-sha>`, merge, and let `nginx-template.yml` publish the reverted render.
+   Re-run `check-live-drift.sh` and confirm `drift: none` afterwards.
+
 ## Static group (`static-cluster`)
 
-Re-publish the tree from the last good commit:
+Restore the tree **on current `main`** and publish it. Do not check out the old commit: anything
+before `#10` still uses `curl -k` and the old `NIM_URL` scheme, and the scripts have moved on.
 
 ```bash
-git switch --detach <good-sha>
-GROUP=static-cluster CONFIG_DIR=groups/static-cluster PRESERVE_AUX=1 \
-  EXTERNAL_ID=<good-sha> NIM_MGMT_ENDPOINT=… NIM_URL=https://manager-server \
-  NIM_HOST=… NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+# 1. Bring the last good tree back into the working branch, from the good commit
+git restore --source=<good-sha> -- groups/static-cluster
+git commit -m "rollback: restore static-cluster from <good-sha>"
+# 2. Open a PR, merge it, and let nginx-static.yml publish (it lints and runs nginx -t first)
 ```
 
-Then re-run `check-live-drift.sh` for `static-cluster`.
+For an emergency publish without waiting for the merge, run the same tree through the current
+scripts:
+
+```bash
+GROUP=static-cluster CONFIG_DIR=groups/static-cluster PRESERVE_AUX=1 \
+  EXTERNAL_ID=<good-sha> NIM_MGMT_ENDPOINT=… NIM_URL=https://manager-server \
+  NIM_HOST=… NIM_CA=certs/nim-ca.pem NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+```
+
+Then `./scripts/check-live-drift.sh` for `static-cluster`.
+
+Either way the **commit** must be repaired too, or the next push re-publishes the bad tree.
 
 ## A group delete returns 412
 

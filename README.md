@@ -43,19 +43,25 @@ groups/
 docs/
   workflow.md                  # deploy pipeline, diagrams, step-by-step
   runbooks/                    # task-oriented procedures
+  reference/                   # environments, exit codes, options, prerequisites, repo settings
 scripts/
-  lint.sh                      invariants + inputs for static groups
+  lint.sh                      invariants for static groups (--rendered for a template group)
   lint-inputs.py               validate template names and /etc/nginx dirs
   nginx-test.sh                real `nginx -t` for static groups
   nginx-test-dir.sh            real `nginx -t` for one tree
   backup-config.sh             snapshot the group's CURRENT config from NIM
+  restore.sh                   replay a backup artifact
   render.sh                    compose a group from NIM templates + inputs
   sync_templates.py            create/update NIM templates from templates/
   check-live-drift.sh          compare live NIM config to the rendered hash
   check-nim-agents.sh          fail if any NIM system is offline
   tree_hash.py                 canonical SHA-256 / CRC32 of a config tree
   publish.sh                   publish a tree with externalId
+  group-mode.sh                read deploy_mode; unknown is exit 2
+  detect-groups.sh             changed groups per mode, fail closed
   list-groups.sh               list groups by deploy_mode
+certs/
+  nim-ca.pem                   # pinned internal CA; scripts use --cacert
 ```
 
 ## Flow
@@ -68,7 +74,7 @@ scripts/
 
 Both publish paths:
 
-1. Snapshot the current NIM config to a 90-day artifact.
+1. Snapshot the current NIM config to a redacted, 7-day artifact.
 2. Build the payload.
 3. `POST` it with `externalId = github.sha`.
 4. Wait for the deployment.
@@ -106,8 +112,8 @@ In-repo under [`docs/`](docs/):
 
 4. Open a PR. Merging publishes only the groups owned by the matching workflow.
 
-A template edit must be applied to NIM manually (or by a future sync script) before merging;
-otherwise `render.sh` composes the old NIM template and the hash does not change.
+A template edit must be applied to NIM with `python3 scripts/sync_templates.py --all` before
+merging; otherwise `render.sh` composes the old NIM template and the hash does not change.
 
 ## Templates and inputs
 
@@ -165,10 +171,10 @@ NIM_URL=… python3 scripts/sync_templates.py --all --dry-run
 ```
 
 The template workflow runs `--check` before compose/publish, so a template change must be
-applied to NIM before it can be merged and deployed. A weekly scheduled job runs
-`scripts/check-live-drift.sh` for every template-mode group and
-`scripts/check-nim-agents.sh` for all NIM systems, and fails if the live config differs or any
-agent is offline.
+applied to NIM before it can be merged and deployed. A scheduled job runs
+`scripts/check-live-drift.sh` for **every** group and `scripts/check-nim-agents.sh` for all NIM
+systems. It also runs on `workflow_dispatch`, and a failure opens or updates a GitHub issue so
+the alert does not depend on who last edited the cron.
 
 ## Run it locally
 
@@ -177,20 +183,25 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest
 
-./scripts/lint.sh
-./scripts/nginx-test.sh                                  # static groups; needs docker
+./scripts/lint.sh                 # every static group
+./scripts/lint.sh --rendered <g>  # a rendered template group
+./scripts/nginx-test.sh           # static groups; needs docker
 ./scripts/nginx-test-dir.sh groups/static-cluster # classic tree
 
 GROUP=static-cluster \
-NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
+  NIM_URL=https://manager-server NIM_HOST=<reachable-address> \
+  NIM_MGMT_ENDPOINT=<mgmt-endpoint> NIM_CA=certs/nim-ca.pem \
+  NIM_USER=… NIM_PASSWORD=… ./scripts/publish.sh
 ```
 
 ### Render from templates
 
 ```bash
 GROUP=template-cluster \
-NIM_URL=https://<nim-host> NIM_USER=… NIM_PASSWORD=… \
-OUT_DIR=rendered/template-cluster \
+  NIM_URL=https://manager-server NIM_HOST=<reachable-address> \
+  NIM_MGMT_ENDPOINT=<mgmt-endpoint> NIM_CA=certs/nim-ca.pem \
+  NIM_USER=… NIM_PASSWORD=… \
+  OUT_DIR=rendered/template-cluster \
 WRITE_HASH=1 HASH_FILE=.nim/rendered.lock.json \
 ./scripts/render.sh
 
@@ -294,17 +305,21 @@ NIM_USER=… NIM_PASSWORD=… DRY_RUN=1 ./scripts/publish.sh
 
 ## Repository configuration
 
-Secrets: `NIM_URL` (`https://manager-server`), `NIM_HOST`, `NIM_USER`, `NIM_PASSWORD`, `NIM_MGMT_ENDPOINT`.
+Secrets are listed with their scope in [`docs/reference/repo-settings.md`](docs/reference/repo-settings.md).
+`NIM_URL` is `https://manager-server`; `NIM_HOST` and `NIM_MGMT_ENDPOINT` are secrets; the admin
+credential lives in the `nim` environment (`main` only) and PR validation uses `ci-validator`.
 
 `NIM_MGMT_ENDPOINT` replaces the `nim-mgmt-endpoint.invalid` placeholder in the `mgmt
 usage_report` line. `render.sh` replaces it in the composed tree before hashing; `publish.sh`
 replaces it in the payload before the POST. If a tree still contains the placeholder and the
 variable is unset, both scripts exit with an error rather than publishing an unusable endpoint.
 
-The NIM must be reachable from GitHub-hosted runners, which are not on the tailnet: a tailnet name
-resolves to a `100.x` address they cannot route, so `NIM_URL` points at an address the runners can
-reach. TLS uses the internal `manager-server` certificate, so the scripts call curl with `-k`.
+The NIM must be reachable from GitHub-hosted runners. TLS is verified against the internal
+`manager-server` certificate: commit `certs/nim-ca.pem`, set `NIM_HOST` to a reachable address,
+and let curl use `--resolve manager-server:443:$NIM_HOST`. Never re-enable `curl -k`.
 
-`NIM_USER`/`NIM_PASSWORD` are the NIM admin credentials by design (this NIM exposes no scoped
-service account). That makes **repo write access equivalent to NIM admin**: anyone who can edit
-a workflow can read the secrets, so keep the repo private and its collaborator list tight.
+This repository is public. `NIM_USER`/`NIM_PASSWORD` are the admin credentials and exist only in
+the `nim` environment with a `main`-only branch policy, so a PR job cannot read them. Pull-request
+validation uses `ci-validator`, which can read templates and groups and compose, but cannot
+publish, delete a group, or manage users. A repository write still lets a merged workflow change
+what runs on `main`, so protect `main` and require review.

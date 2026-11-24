@@ -22,8 +22,10 @@
 | | 2 | one or more systems offline |
 | `tree_hash.py` | 0 | hash printed |
 | `sync_templates.py` | 0 | in sync / applied |
-| | 1 | drift (with `--check`) or API error |
+| | 1 | API error |
+| | 2 | drift with `--check` |
 | `lint.sh` | 0 | all invariants hold |
 | | 1 | an invariant failed |
+| | 2 | a group or rendered tree does not exist (bad `--rendered` argument) |
 | `group-mode.sh` | 2 | missing `group.yaml` or unknown `deploy_mode` |
 | `detect-groups.sh` | 2 | bad mode or an unparsable group |

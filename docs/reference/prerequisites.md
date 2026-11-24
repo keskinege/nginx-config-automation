@@ -8,7 +8,7 @@ What a workstation or runner needs before the scripts will work.
 | mikefarah `yq` | **v4.54.3** | `group-mode.sh`, `lint.sh`, `sync_templates.py` |
 | `jq` | any v1.6+ | payload and manifest handling |
 | `curl` | any with `--cacert` | all NIM calls |
-| Docker | any recent | `nginx -t` in the pinned OSS image |
+| Docker | any recent | `nginx -t` in the pinned **NGINX Plus** image |
 | NIM | 2.23.1+ (this deployment) | `conf-templates` and instance-group APIs |
 | NGINX Plus | R33+ | the `mgmt { usage_report ... }` block |
 | NGINX Agent | 2.x | membership in `agent-dynamic.conf` |

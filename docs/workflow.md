@@ -66,8 +66,9 @@ Branch protection on `main` requires exactly one status context: **`ci-gate`**. 
 always-run aggregate, so a docs-only PR still reports it.
 
 Publish jobs use the `nim` GitHub environment and the serialized concurrency group
-`nim-group-<group>`, so two runs never publish the same group at once. PR validation currently
-uses the repository `NIM_*` secrets; the scoped validator identity is not available yet.
+`nim-group-<group>`, so two runs never publish the same group at once. PR validation uses the
+repository `NIM_VALIDATOR_*` secrets (`ci-validator`: templates and groups read plus compose).
+The admin credential is in the `nim` environment, `main` only.
 
 ## Change pipeline
 
@@ -84,7 +85,7 @@ flowchart TD
     F --> G
     G --> H["NIM stores group config"]
     H --> I["Agents apply on next sync"]
-    I --> J["Verify: check-live-drift.sh<br/>check-nim-agents.sh"]
+    I --> J["Nightly/dispatch: check-live-drift.sh<br/>check-nim-agents.sh"]
 ```
 
 ### On a pull request — validate, never publish
@@ -92,7 +93,7 @@ flowchart TD
 `checks` (always): `pytest`, `./scripts/lint.sh`, `actionlint`, and the changed-path detection.
 
 `static validation` (only when a static path changed): `./scripts/nginx-test.sh` — real `nginx -t`
-per static group (OSS image, Plus block neutralised).
+per static group (the pinned NGINX Plus image).
 
 `template validation` (only when a template path changed):
 
@@ -103,12 +104,12 @@ per static group (OSS image, Plus block neutralised).
 
 ### On merge to `main` — publish only what changed
 
-1. **Detect.** `scripts/list-groups.sh static|template` supplies the mode list. The `changed` job
+1. **Detect.** `scripts/detect-groups.sh` decides what changed. The `changed` job
    diffs `groups/` against the push range and keeps only groups whose `deploy_mode` matches the
    workflow. A `templates/` or `.nim/` change selects **every** template group. Manual dispatch
    selects every group for that mode.
 2. **Back up.** `scripts/backup-config.sh` snapshots the group's *current* NIM config, uploaded as a
-   90-day artifact `nim-group-config-backup-<group>-<run_id>`.
+   redacted 7-day artifact `nim-group-config-backup-<group>-<run_id>`.
 3. **Build.** Static uses `groups/<group>/`; template runs `render.sh` into `rendered/<group>/`.
 4. **Publish.** `scripts/publish.sh` posts the tree with `externalId = <commit SHA>` and
    `PRESERVE_AUX=1`.
@@ -190,8 +191,8 @@ POST, so the lock, the written tree, and the live config agree. If a tree still 
 placeholder and the variable is unset, the script exits with an error.
 
 A group can instead set `mgmt_endpoint` in `inputs.yaml`; an explicit value is used as-is and no
-substitution happens. `NIM_MGMT_ENDPOINT` is a repository secret, available to every job that has
-`environment: nim`.
+substitution happens. `NIM_MGMT_ENDPOINT` is a repository secret, available to PR validation and to the publish and
+drift jobs.
 
 ### Publish sequence
 
@@ -251,7 +252,7 @@ commit's tree.
 |---|---|
 | `groups/<group>/group.yaml` | `name`, `require_mgmt`, `deploy_mode` — mode gate |
 | `groups/<group>/inputs.yaml` | template-mode `baseData` and `augmentData` |
-| `templates/base/*/meta.yaml` | template name, type, and file map |
+| `templates/**/meta.yaml` | template name, type, and file map (base and augment) |
 | `.nim/templates.lock.json` | template name → NIM uid |
 | `.nim/rendered.lock.json` | group → canonical render hash |
 | `rendered/<group>/` | last composed tree (gitignored) |

@@ -48,5 +48,6 @@ The internal `apigw-svc` CA predates the CA/B forum extensions. `sync_templates.
 
 ## F5 registry returns 400 for the Plus image
 
-The cluster license JWT is not accepted as a registry credential. CI keeps the pinned OSS image;
-supply a MyF5 registry JWT as `NGINX_PLUS_JWT` to enable the real Plus image.
+The registry wants the **client certificate**, not a JWT. CI installs `nginx-repo.crt`/`.key`
+into `/etc/docker/certs.d/private-registry.nginx.com` and restarts Docker; the licence JWT is only
+the runtime `NGINX_PLUS_JWT`. A 400 means the certificate is missing or docker was not restarted.

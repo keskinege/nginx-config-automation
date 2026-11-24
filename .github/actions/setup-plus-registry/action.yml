@@ -9,11 +9,14 @@ runs:
   using: composite
   steps:
     - shell: bash
+      env:
+        CRT: ${{ inputs.crt }}
+        KEY: ${{ inputs.key }}
       run: |
         set -euo pipefail
         sudo mkdir -p /etc/docker/certs.d/private-registry.nginx.com
-        printf '%s' "${{ inputs.crt }}" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.cert >/dev/null
-        printf '%s' "${{ inputs.key }}" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.key >/dev/null
+        printf '%s' "$CRT" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.cert >/dev/null
+        printf '%s' "$KEY" | sudo tee /etc/docker/certs.d/private-registry.nginx.com/client.key >/dev/null
         sudo chmod 600 /etc/docker/certs.d/private-registry.nginx.com/client.key
         sudo systemctl restart docker
         for _ in $(seq 1 30); do

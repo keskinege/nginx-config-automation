@@ -190,7 +190,7 @@ The group `name` is immutable after creation; `displayName` can change later.
 
 ```bash
 BASE="${NIM_URL%/}/api/platform/v1"
-curl -sk -u "$NIM_USER:$NIM_PASSWORD" -X POST "$BASE/instance-groups" \
+curl --cacert certs/nim-ca.pem --resolve "manager-server:443:$NIM_HOST" -u "$NIM_USER:$NIM_PASSWORD" -X POST "$BASE/instance-groups" \
   -H 'Content-Type: application/json' \
   -d '{"name":"<group>","displayName":"<Group> (static|template)"}'
 ```

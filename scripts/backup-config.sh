@@ -56,7 +56,7 @@ PLACEHOLDER="nim-mgmt-endpoint.invalid"
 
 python3 - "$OUT_DIR" "$GROUP" "$GROUP_UID" "${EXTERNAL_ID:-unknown}" \
   "${EXTERNAL_ID_TYPE:-git}" "$NIM_MGMT_ENDPOINT" "$PLACEHOLDER" <<'PY'
-import base64, datetime, json, pathlib, sys
+import base64, datetime, json, pathlib, re, sys
 
 out_dir, group = sys.argv[1], sys.argv[2]
 uid, trigger, trigger_type, endpoint, placeholder = sys.argv[3:8]
@@ -64,26 +64,44 @@ out = pathlib.Path(out_dir)
 cfg = json.loads((out / "group-config.json").read_text())
 group_doc = json.loads((out / "group.json").read_text())
 
-needle = endpoint.encode()
 ph = placeholder.encode()
+usage = re.compile(rb"(usage_report[ \t]+endpoint=)([^;\s]+)")
+
+
+def redact(data: bytes, name: str) -> bytes:
+    if usage.search(data) and not endpoint:
+        raise SystemExit(
+            "::error::config contains the mgmt endpoint; set NIM_MGMT_ENDPOINT"
+        )
+
+    def repl(match) -> bytes:
+        return match.group(1) + ph
+
+    data = usage.sub(repl, data)
+    for line in data.splitlines():
+        if b"usage_report" in line and b"endpoint=" in line and ph not in line:
+            raise SystemExit(f"::error::{name}: mgmt endpoint not redacted")
+    return data
+
+
 files = []
 for section in ("configFiles", "auxFiles"):
     for f in (cfg.get(section) or {}).get("files") or []:
+        name = f["name"]
         data = base64.b64decode(f.get("contents") or "")
-        if b"usage_report endpoint=" in data and ph not in data:
-            if not endpoint:
-                raise SystemExit(
-                    "::error::config contains the mgmt endpoint; set NIM_MGMT_ENDPOINT"
-                )
-            data = data.replace(needle, ph)
+        data = redact(data, name)
         f["contents"] = base64.b64encode(data).decode()
-        dest = out / f["name"].lstrip("/")
+        dest = out / name.lstrip("/")
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
-        files.append(f["name"])
+        files.append(name)
 
 # The uploaded JSON is the authoritative restore payload; it must be redacted too.
 (out / "group-config.json").write_text(json.dumps(cfg))
+
+# group.json names the members and their instances; restore.sh does not need it.
+members = len(group_doc.get("instances") or [])
+(out / "group.json").unlink()
 
 versions = ((group_doc.get("configVersion") or {}).get("versions") or [])
 external = versions[-1].get("externalId") if versions else None
@@ -92,7 +110,7 @@ external = versions[-1].get("externalId") if versions else None
     f"captured_at_utc={datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
     f"instance_group={group}",
     f"instance_group_uid={uid}",
-    f"members={len(group_doc.get('instances') or [])}",
+    f"members={members}",
     f"group_config_update_time={cfg.get('updateTime')}",
     f"group_config_external_id={external or 'none'}",
     f"trigger_commit={trigger}",
@@ -102,7 +120,7 @@ external = versions[-1].get("externalId") if versions else None
 ]) + "\n")
 
 print("\n".join([
-    f"backup: group={group} uid={uid} members={len(group_doc.get('instances') or [])}",
+    f"backup: group={group} uid={uid} members={members}",
     f"backup: externalId={external or 'none'} updateTime={cfg.get('updateTime')}",
     *[f"backup:   {name}" for name in files],
 ]))
