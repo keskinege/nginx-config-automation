@@ -62,3 +62,8 @@ def test_deploy_syncs_templates_before_rendering():
     sync = TEMPLATE.index("sync_templates.py --all")
     render = TEMPLATE.index("name: render from templates")
     assert sync < render
+
+
+def test_lock_is_enforced_only_where_the_namespace_is_real():
+    assert 'CHECK_HASH="${{ steps.prefix.outputs.hash }}"' in CI
+    assert "echo \"hash=1\"" in CI
