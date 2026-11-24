@@ -77,11 +77,21 @@ if [ -n "${NIM_HOST:-}" ]; then
   CURL+=(--resolve "manager-server:443:$NIM_HOST")
 fi
 
+# OUT_DIR is deleted before it is written. Only replace a render output: a
+# path under rendered/, a path that does not exist yet, or a directory that
+# carries a render-manifest.txt from an earlier render.
 case "$OUT_DIR" in
   ""|"/"|"."|"..") echo "::error::refusing OUT_DIR=$OUT_DIR"; exit 1 ;;
-  "groups/$GROUP"|"groups/$GROUP/"|"groups/$GROUP"/*)
-    echo "::error::refusing to write over the source group directory: $OUT_DIR"
+  groups|groups/|groups/*|templates|templates/|templates/*|\
+  scripts|scripts/|scripts/*|certs|certs/|certs/*|.git|.git/*)
+    echo "::error::refusing to write over repository content: $OUT_DIR"
     exit 1 ;;
+  rendered|rendered/*) ;;
+  *)
+    if [ -e "$OUT_DIR" ] && [ ! -f "$OUT_DIR/render-manifest.txt" ]; then
+      echo "::error::refusing to replace '$OUT_DIR': no render-manifest.txt from an earlier render"
+      exit 1
+    fi ;;
 esac
 
 api() {

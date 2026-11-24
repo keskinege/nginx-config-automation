@@ -48,6 +48,12 @@ class MockNIM:
         self.aux_files = [
             {"name": "mime.types", "contents": b64("types {}\n")},
         ]
+        # Optional per-test overrides for the group config endpoint.
+        self.group_config_files: list[dict] | None = None
+        self.group_aux_files: list[dict] | None = None
+        self.group_instances = [{"name": "m1"}]
+        self.last_config_external_id: str | None = None
+        self.drop_next_post = False
         self.systems = [
             {"hostname": "REDACTED-MEMBER", "status": {"state": "online"}},
             {"hostname": "REDACTED-MEMBER", "status": {"state": "online"}},
@@ -95,7 +101,21 @@ def make_handler(state: MockNIM):
             elif self.path.startswith("/api/platform/v1/conf-templates"):
                 self._send(200, {"items": state.templates, "count": len(state.templates)})
             elif self.path == "/api/platform/v1/instance-groups":
-                self._send(200, {"items": [{"name": "test-group", "uid": "group-1"}]})
+                self._send(200, {"items": [{
+                    "name": "test-group", "uid": "group-1",
+                    "instances": state.group_instances,
+                }]})
+            elif self.path == "/api/platform/v1/instance-groups/group-1":
+                versions = []
+                if state.last_config_external_id:
+                    versions = [{"externalId": state.last_config_external_id}]
+                self._send(200, {
+                    "name": "test-group",
+                    "uid": "group-1",
+                    "instances": state.group_instances,
+                    "configVersion": {"versions": versions},
+                    "lastDeploymentDetails": {"id": "dep-1"} if versions else {},
+                })
             elif self.path == "/api/platform/v1/instance-groups/deployments/dep-1":
                 self._send(200, {
                     "status": "successful",
@@ -109,26 +129,26 @@ def make_handler(state: MockNIM):
             elif self.path == "/api/platform/v1/systems":
                 self._send(200, {"items": state.systems})
             elif self.path == "/api/platform/v1/instance-groups/group-1/config":
+                config_files = state.group_config_files
+                if config_files is None:
+                    config_files = [{
+                        "name": "/etc/nginx/nginx.conf",
+                        "contents": b64(
+                            "events {}\n"
+                            "http { include /etc/nginx/conf.d/*.conf; }\n"
+                            "mgmt { usage_report endpoint=real.example; }\n"
+                        ),
+                    }]
+                aux_files = state.group_aux_files
+                if aux_files is None:
+                    aux_files = [{
+                        "name": "/etc/nginx/tls/tls.crt",
+                        "contents": b64("cert"),
+                    }]
                 self._send(200, {
                     "updateTime": "2026-01-01T00:00:00Z",
-                    "configFiles": {
-                        "rootDir": "/etc/nginx",
-                        "files": [{
-                            "name": "/etc/nginx/nginx.conf",
-                            "contents": b64(
-                                "events {}\n"
-                                "http { include /etc/nginx/conf.d/*.conf; }\n"
-                                "mgmt { usage_report endpoint=real.example; }\n"
-                            ),
-                        }],
-                    },
-                    "auxFiles": {
-                        "rootDir": "/etc/nginx",
-                        "files": [{
-                            "name": "/etc/nginx/tls/tls.crt",
-                            "contents": b64("cert"),
-                        }],
-                    },
+                    "configFiles": {"rootDir": "/etc/nginx", "files": config_files},
+                    "auxFiles": {"rootDir": "/etc/nginx", "files": aux_files},
                 })
             else:
                 self._send(404, {"message": "not found"})
@@ -157,6 +177,13 @@ def make_handler(state: MockNIM):
         def do_POST(self) -> None:
             body = self._body()
             state.requests.append(("POST", self.path, body))
+            if self.path.endswith("/config"):
+                state.last_config_external_id = (body or {}).get("externalId")
+            if state.drop_next_post:
+                # Simulate "NIM applied it but the response was lost".
+                state.drop_next_post = False
+                self.close_connection = True
+                return
             if self.path == "/api/platform/v1/conf-templates":
                 uid = f"new-{state.next_template}"
                 state.next_template += 1

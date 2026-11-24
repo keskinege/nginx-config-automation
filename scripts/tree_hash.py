@@ -27,6 +27,11 @@ import re
 import sys
 import zlib
 
+try:  # executed as a script
+    from select_files import managed
+except ImportError:  # imported as scripts.tree_hash
+    from .select_files import managed
+
 PREFIX = b"nginx-config-tree-v1\0"
 EXCLUDED = {"render-manifest.txt", ".DS_Store"}
 ENDPOINT_PLACEHOLDER = b"nim-mgmt-endpoint.invalid"
@@ -117,7 +122,7 @@ def hash_tree(
         for filename in sorted(filenames):
             path = pathlib.Path(dirpath) / filename
             rel = path.relative_to(base).as_posix()
-            if _is_excluded(rel, filename, excludes):
+            if not managed(rel) or _is_excluded(rel, filename, excludes):
                 continue
             if not path.is_file():
                 continue

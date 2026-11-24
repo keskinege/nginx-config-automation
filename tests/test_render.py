@@ -59,3 +59,19 @@ def test_check_hash_detects_change(mock_nim, repo_group, tmp_path):
     result = run_render(mock_nim, repo_group, out, CHECK_HASH=1, HASH_FILE=lock)
     assert result.returncode == 2
     assert "changed" in result.stderr
+
+
+def test_render_refuses_a_repository_directory(mock_nim, repo_group):
+    result = run_render(mock_nim, repo_group, "groups")
+    assert result.returncode == 1
+    assert "refusing" in (result.stdout + result.stderr)
+
+
+def test_render_refuses_an_existing_directory_without_a_manifest(mock_nim, repo_group, tmp_path):
+    out = tmp_path / "precious"
+    out.mkdir()
+    (out / "keep.txt").write_text("x")
+    result = run_render(mock_nim, repo_group, out)
+    assert result.returncode == 1
+    assert "render-manifest" in (result.stdout + result.stderr)
+    assert (out / "keep.txt").exists()

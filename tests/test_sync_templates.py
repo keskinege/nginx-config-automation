@@ -127,3 +127,12 @@ def test_dry_run_makes_no_writes(mock_nim, tmp_path):
     result = run_sync(mock_nim, tmp_path, "--all", "--dry-run")
     assert result.returncode == 0, result.stderr
     assert not [r for r in mock_nim.requests if r[0] in {"PUT", "POST", "DELETE"}]
+
+
+def test_check_reports_a_recreated_template(mock_nim, tmp_path):
+    write_template(tmp_path)
+    set_remote(mock_nim)
+    (tmp_path / "lock.json").write_text(json.dumps({"x": "tpl-old"}))
+    result = run_sync(mock_nim, tmp_path, "--all", "--check")
+    assert result.returncode == 2
+    assert "recreated" in result.stderr

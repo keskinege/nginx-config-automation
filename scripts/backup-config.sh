@@ -69,7 +69,11 @@ usage = re.compile(rb"(usage_report[ \t]+endpoint=)([^;\s]+)")
 
 
 def redact(data: bytes, name: str) -> bytes:
-    if usage.search(data) and not endpoint:
+    # A backup is redacted, so be broad: the endpoint may also appear in a
+    # proxy_pass, a comment or an upstream block. tree_hash.py stays narrow
+    # because it compares against live config.
+    found = [match.group(2) for match in usage.finditer(data)]
+    if found and not endpoint:
         raise SystemExit(
             "::error::config contains the mgmt endpoint; set NIM_MGMT_ENDPOINT"
         )
@@ -78,9 +82,18 @@ def redact(data: bytes, name: str) -> bytes:
         return match.group(1) + ph
 
     data = usage.sub(repl, data)
+    needles = {value for value in found if value != ph}
+    if endpoint:
+        needles.add(endpoint.encode())
+    for needle in needles:
+        data = data.replace(needle, ph)
+
     for line in data.splitlines():
         if b"usage_report" in line and b"endpoint=" in line and ph not in line:
             raise SystemExit(f"::error::{name}: mgmt endpoint not redacted")
+    for needle in needles:
+        if needle and needle != ph and needle in data:
+            raise SystemExit(f"::error::{name}: endpoint {needle!r} still present")
     return data
 
 

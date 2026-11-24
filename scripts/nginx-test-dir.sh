@@ -7,6 +7,9 @@
 set -euo pipefail
 
 DIR="${1:?usage: nginx-test-dir.sh DIR}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Reject includes that only pass because the stub would create them.
+"$SCRIPT_DIR/check-includes.sh" "$DIR"
 IMAGE="${NGINX_TEST_IMAGE:-private-registry.nginx.com/nginx-plus/agent:nginx-plus-20261118@sha256:7ba2bd0045205be0c9e81601da4d0f8b36105de880b914903029e33e8485e436}"
 : "${NGINX_PLUS_JWT:?set NGINX_PLUS_JWT (NGINX Plus license JWT)}"
 

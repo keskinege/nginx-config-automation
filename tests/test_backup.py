@@ -95,3 +95,30 @@ def test_backup_does_not_upload_the_group_document(mock_nim, tmp_path):
         assert "members=" in (out / "manifest.txt").read_text()
     finally:
         shutil.rmtree(group, ignore_errors=True)
+
+
+def test_backup_redacts_the_endpoint_anywhere_in_the_config(mock_nim, tmp_path):
+    group = REPO / "groups" / "test-group"
+    group.mkdir(parents=True, exist_ok=True)
+    try:
+        import base64 as b64mod
+
+        mock_nim.group_config_files = [{
+            "name": "/etc/nginx/nginx.conf",
+            "contents": b64mod.b64encode(
+            b"events {}\n"
+            b"http {\n"
+            b"  proxy_pass https://real.example;\n"
+            b"  # upstream real.example\n"
+            b"  mgmt { usage_report endpoint=real.example; }\n"
+            b"}\n"
+            ).decode(),
+        }]
+        out = tmp_path / "backup"
+        result = run_backup(mock_nim, out, NIM_MGMT_ENDPOINT="real.example")
+        assert result.returncode == 0, result.stderr
+        config = (out / "etc/nginx/nginx.conf").read_text()
+        assert "real.example" not in config, config
+        assert "nim-mgmt-endpoint.invalid" in config
+    finally:
+        shutil.rmtree(group, ignore_errors=True)
