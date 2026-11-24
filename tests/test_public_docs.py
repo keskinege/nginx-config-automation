@@ -15,9 +15,9 @@ PATTERNS = {
     "install path": r"/home/[a-z][a-z0-9_-]*/(nim|nginx)",
     "container id": r"\b[0-9a-f]{12}_nim-",
     "htpasswd hash": r"\bapr1\b",
-    "bootstrap file": r"admin_password",
-    "data volume": r"\bnim_nim-data\b",
-    "gitops repo": r"\bk3s-gh\b",
+    "bootstrap file": r"admin[_ -]?passw",
+    "data volume": r"\bnim[n_-]nim-",
+    "gitops repo": r"\bk3s-[a-z]{2}\b",
     "public listener": r"\b0\.0\.0\.0:(80|443)\b",
     "member hostname": r"\bplus-(docker|k8s)-[0-9]+\b",
 }
