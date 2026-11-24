@@ -15,6 +15,8 @@ STALE = {
     ],
     "docs/runbooks/static-vs-template.md": [
         "list-groups.sh static|template` is the source of truth",
+        "`analyze` + compose",
+        "`externalId` on compose + publish",
     ],
     "docs/runbooks/troubleshooting.md": ["CI keeps the pinned OSS image"],
     "docs/reference/prerequisites.md": ["nginx -t` in the pinned OSS image"],
@@ -48,3 +50,9 @@ def test_exit_codes_match_the_scripts():
     text = DOCS["docs/reference/exit-codes.md"]
     assert "| | 2 | drift with `--check`" in text
     assert "| | 2 | a group or rendered tree does not exist" in text
+
+
+def test_nginx_test_script_header_names_the_plus_image():
+    header = (REPO / "scripts/nginx-test.sh").read_text().splitlines()[1]
+    assert "OSS image" not in header
+    assert "Plus" in header

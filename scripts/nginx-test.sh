@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate every static group tree with a real `nginx -t` using the OSS image.
+# Validate every static group tree with a real `nginx -t` using the pinned NGINX Plus image.
 # Template-mode groups are validated from the rendered tree in their own workflow.
 set -euo pipefail
 

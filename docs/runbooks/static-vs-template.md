@@ -45,9 +45,9 @@ Use **neither** for:
 |---|---|---|
 | Duplication | High across groups | Low (shared base/augments) |
 | Review unit | Full `nginx.conf`/`conf.d` diff | Template + input diff + rendered diff |
-| Validation | `lint.sh` + `nginx -t` | `analyze` + compose + `nginx -t` |
-| NIM objects | None | Templates, submissions, UID lock |
-| Provenance | `externalId = git SHA` on publish | `externalId` on compose + publish |
+| Validation | `lint.sh` + `nginx -t` | `sync --check` + compose + `lint.sh --rendered` + `nginx -t` |
+| NIM objects | None | Templates + per-file UID lock (the submissions API is unused) |
+| Provenance | `externalId = git SHA` on publish | `externalId = git SHA` on publish (compose sends none) |
 | File layout | Exact | Composed; augments land under `/etc/nginx/augments/http/<uid>.conf` |
 | Mode switch | Tree retained | Inputs/templates retained |
 | Operational risk | Managed-set deletion; self-contained includes | Image-file duplication, snapshots, agent/UID churn |
