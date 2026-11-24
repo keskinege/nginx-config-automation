@@ -107,13 +107,33 @@ jobs:
         env:
           NIM_HOST: ${{ secrets.NIM_HOST }}
         run: echo "$NIM_HOST manager-server" | sudo tee -a /etc/hosts
+      - id: prefix
+        name: choose the template namespace
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=pr-${{ github.event.pull_request.number }}-" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: verify templates match NIM
+        if: steps.prefix.outputs.value == ''
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_VALIDATOR_USER }}
           NIM_PASSWORD: ${{ secrets.NIM_VALIDATOR_PASSWORD }}
         run: python3 scripts/sync_templates.py --all --check
+      - name: publish this PR's templates under a throwaway prefix
+        if: steps.prefix.outputs.value != ''
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+          NIM_USER: ${{ secrets.NIM_TEMPLATE_WRITER_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_TEMPLATE_WRITER_PASSWORD }}
+          TEMPLATE_PREFIX: ${{ steps.prefix.outputs.value }}
+        run: python3 scripts/sync_templates.py --all
+
       - uses: ./.github/actions/setup-plus-registry
         with:
           crt: ${{ secrets.NGINX_REPO_CRT }}
@@ -126,6 +146,7 @@ jobs:
           NIM_PASSWORD: ${{ secrets.NIM_VALIDATOR_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
           NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
+          TEMPLATE_PREFIX: ${{ steps.prefix.outputs.value }}
         run: |
           set -euo pipefail
           for g in $(./scripts/list-groups.sh template); do
@@ -134,6 +155,16 @@ jobs:
             ./scripts/lint.sh --rendered "$g"
             ./scripts/nginx-test-dir.sh "rendered/$g"
           done
+
+      - name: delete this PR's templates
+        if: always() && steps.prefix.outputs.value != ''
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+          NIM_USER: ${{ secrets.NIM_TEMPLATE_WRITER_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_TEMPLATE_WRITER_PASSWORD }}
+          TEMPLATE_PREFIX: ${{ steps.prefix.outputs.value }}
+        run: python3 scripts/sync_templates.py --delete-prefix "$TEMPLATE_PREFIX"
 
   ci-gate:
     name: ci-gate

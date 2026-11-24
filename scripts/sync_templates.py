@@ -172,6 +172,9 @@ class NIM:
     def delete_file(self, uid: str, file_uid: str) -> None:
         self.request("DELETE", f"/conf-templates/{uid}/files/{file_uid}")
 
+    def delete_template(self, uid: str) -> None:
+        self.request("DELETE", f"/conf-templates/{uid}")
+
 
 def load_lock(path: pathlib.Path) -> dict:
     if not path.exists():
@@ -228,22 +231,26 @@ def check(nim: NIM, local: list[dict], remote: dict[str, dict],
 
 
 def apply(nim: NIM, local: list[dict], remote: dict[str, dict], lock_path: pathlib.Path,
-          dry_run: bool, no_prune: bool) -> int:
+          dry_run: bool, no_prune: bool, prefix: str = "") -> int:
     lock = load_lock(lock_path)
     for entry in local:
         name = entry["meta"]["name"]
-        item = remote.get(name)
+        target = f"{prefix}{name}"
+        item = remote.get(target)
         if not item:
-            print(f"sync: create {name}")
+            print(f"sync: create {target}")
             if dry_run:
                 continue
-            created = nim.create(entry)
+            payload = dict(entry)
+            payload["meta"] = {**entry["meta"], "name": target}
+            created = nim.create(payload)
             uid = created["uid"]
-            lock[name] = {"uid": uid, "files": {
-                file_name: file_hash(file["content"])
-                for file_name, file in entry["files"].items()
-            }}
-            print(f"sync: created {name} ({uid})")
+            if not prefix:
+                lock[name] = {"uid": uid, "files": {
+                    file_name: file_hash(file["content"])
+                    for file_name, file in entry["files"].items()
+                }}
+            print(f"sync: created {target} ({uid})")
             continue
 
         uid = item["uid"]
@@ -254,7 +261,7 @@ def apply(nim: NIM, local: list[dict], remote: dict[str, dict], lock_path: pathl
             if file_name not in remote_files
         }
         if to_add:
-            print(f"sync: add {name}: {', '.join(sorted(to_add))}")
+            print(f"sync: add {target}: {', '.join(sorted(to_add))}")
             if not dry_run:
                 nim.add_files(uid, to_add)
             changed = True
@@ -264,24 +271,41 @@ def apply(nim: NIM, local: list[dict], remote: dict[str, dict], lock_path: pathl
                 continue
             if base64.b64decode(current.get("content") or "") != file["content"] \
                     or current.get("type") != file["type"]:
-                print(f"sync: update {name}: {file_name}")
+                print(f"sync: update {target}: {file_name}")
                 if not dry_run:
                     nim.update_file(uid, current["uid"], file_name, file)
                 changed = True
         if not no_prune:
             for file_name in sorted(set(remote_files) - set(entry["files"])):
-                print(f"sync: delete {name}: {file_name}")
+                print(f"sync: delete {target}: {file_name}")
                 if not dry_run:
                     nim.delete_file(uid, remote_files[file_name]["uid"])
                 changed = True
         if not changed:
-            print(f"sync: unchanged {name}")
-        lock[name] = {"uid": uid, "files": {
-            file_name: file_hash(file["content"])
-            for file_name, file in entry["files"].items()
-        }}
-    if not dry_run:
+            print(f"sync: unchanged {target}")
+        if not prefix:
+            lock[name] = {"uid": uid, "files": {
+                file_name: file_hash(file["content"])
+                for file_name, file in entry["files"].items()
+            }}
+    if not dry_run and not prefix:
         write_lock(lock_path, lock)
+    return 0
+
+
+def delete_prefix(nim: NIM, prefix: str, dry_run: bool) -> int:
+    """Delete every NIM template whose name starts with prefix."""
+    if not prefix:
+        fail("sync_templates: refusing an empty --delete-prefix")
+    deleted = 0
+    for name, item in sorted(nim.list_templates().items()):
+        if not name.startswith(prefix):
+            continue
+        print(f"sync: delete template {name}")
+        if not dry_run:
+            nim.delete_template(item["uid"])
+        deleted += 1
+    print(f"sync: deleted {deleted} template(s) with prefix {prefix!r}")
     return 0
 
 
@@ -292,6 +316,15 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="Report drift; write nothing.")
     parser.add_argument("--dry-run", action="store_true", help="Print actions; write nothing.")
     parser.add_argument("--no-prune", action="store_true", help="Do not delete extra remote files.")
+    parser.add_argument(
+        "--prefix",
+        default=os.environ.get("TEMPLATE_PREFIX", ""),
+        help="Create/update templates as PREFIX<name>; the lock is not touched.",
+    )
+    parser.add_argument(
+        "--delete-prefix",
+        help="Delete every NIM template whose name starts with this prefix.",
+    )
     args = parser.parse_args()
 
     templates_dir = pathlib.Path(os.environ.get("TEMPLATES_DIR", ROOT / "templates"))
@@ -308,10 +341,13 @@ def main() -> int:
         args.all = True
 
     nim = NIM()
+    if args.delete_prefix:
+        return delete_prefix(nim, args.delete_prefix, args.dry_run)
     remote = nim.list_templates()
     if args.check:
         return check(nim, local, remote, load_lock(lock_path))
-    return apply(nim, local, remote, lock_path, args.dry_run, args.no_prune)
+    return apply(nim, local, remote, lock_path, args.dry_run, args.no_prune,
+                 prefix=args.prefix)
 
 
 if __name__ == "__main__":

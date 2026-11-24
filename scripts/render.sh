@@ -70,6 +70,7 @@ EXPECTED_SHA256="${EXPECTED_SHA256:-}"
 WRITE_LOCK="${WRITE_LOCK:-0}"
 NIM_MGMT_ENDPOINT="${NIM_MGMT_ENDPOINT:-}"
 MGMT_PLACEHOLDER="${MGMT_PLACEHOLDER:-nim-mgmt-endpoint.invalid}"
+TEMPLATE_PREFIX="${TEMPLATE_PREFIX:-}"
 BASE="${NIM_URL%/}/api/platform/v1"
 NIM_CA="${NIM_CA:-certs/nim-ca.pem}"
 CURL=(curl -sS -m 30 --cacert "$NIM_CA" -u "$NIM_USER:$NIM_PASSWORD")
@@ -133,10 +134,12 @@ done
 jq -s '{items: add}' "$tmp/pages.jsonl" > "$tmp/templates.json"
 
 # 3. resolve template UIDs and build the compose body
-python3 - "$tmp/inputs.json" "$LOCK_FILE" "$tmp/templates.json" "$tmp/body.json" "$tmp/resolved.json" <<'PY'
+python3 - "$tmp/inputs.json" "$LOCK_FILE" "$tmp/templates.json" "$tmp/body.json" "$tmp/resolved.json" \
+  "$TEMPLATE_PREFIX" <<'PY'
 import json, pathlib, sys
 
 inputs_path, lock_path, templates_path, body_path, resolved_path = sys.argv[1:6]
+prefix = sys.argv[6] if len(sys.argv) > 6 else ""
 body = json.loads(pathlib.Path(inputs_path).read_text())
 
 lock = {}
@@ -165,9 +168,14 @@ def resolve(obj, label):
         return str(uid), name
     if not name:
         raise SystemExit(f"{label}: needs templateUID or templateName")
-    uid = lock_uid(name) or by_name.get(name)
+    lookup = f"{prefix}{name}"
+    # A throwaway (pr-<n>-) namespace has its own UIDs, so the lock must not win.
+    uid = (None if prefix else lock_uid(name)) or by_name.get(lookup)
     if not uid:
-        raise SystemExit(f"{label}: template '{name}' not found in NIM or {lock_path}")
+        raise SystemExit(
+            f"{label}: template '{lookup}' not found in NIM"
+            + ("" if prefix else f" or {lock_path}")
+        )
     obj["templateUID"] = uid
     return str(uid), name
 

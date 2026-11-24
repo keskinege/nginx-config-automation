@@ -49,3 +49,16 @@ def test_drift_uses_the_read_only_validator():
     for step in steps:
         env.update(step.get("env") or {})
     assert env.get("NIM_USER") == "${{ secrets.NIM_VALIDATOR_USER }}"
+
+
+def test_pr_validation_uses_a_throwaway_template_namespace():
+    assert "pr-${{ github.event.pull_request.number }}-" in CI
+    assert "TEMPLATE_PREFIX" in CI
+    assert "--delete-prefix" in CI
+    assert "NIM_TEMPLATE_WRITER_USER" in CI
+
+
+def test_deploy_syncs_templates_before_rendering():
+    sync = TEMPLATE.index("sync_templates.py --all")
+    render = TEMPLATE.index("name: render from templates")
+    assert sync < render

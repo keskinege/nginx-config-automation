@@ -251,6 +251,15 @@ def make_handler(state: MockNIM):
                         break
                 self._send(204)
                 return
+            template_match = re.fullmatch(
+                r"/api/platform/v1/conf-templates/([^/]+)", self.path
+            )
+            if template_match:
+                uid = template_match.group(1)
+                state.templates = [x for x in state.templates if x.get("uid") != uid]
+                state.template_files.pop(uid, None)
+                self._send(204)
+                return
             self._send(404, {"message": "not found"})
 
     return Handler

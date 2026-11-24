@@ -136,3 +136,27 @@ def test_check_reports_a_recreated_template(mock_nim, tmp_path):
     result = run_sync(mock_nim, tmp_path, "--all", "--check")
     assert result.returncode == 2
     assert "recreated" in result.stderr
+
+
+def test_prefix_creates_throwaway_templates_without_touching_the_lock(mock_nim, tmp_path):
+    write_template(tmp_path)
+    mock_nim.templates = []
+    result = run_sync(mock_nim, tmp_path, "--all", "--prefix", "pr-7-")
+    assert result.returncode == 0, result.stderr
+    assert [t["name"] for t in mock_nim.templates] == ["pr-7-x"]
+    assert not (tmp_path / "lock.json").exists()
+
+
+def test_delete_prefix_removes_only_that_namespace(mock_nim, tmp_path):
+    write_template(tmp_path)
+    mock_nim.templates = [
+        {"name": "pr-7-x", "uid": "tpl-pr", "type": "base", "description": "",
+         "state": "draft", "analyzedState": "valid", "isFactory": False,
+         "hasSubmissions": False, "createTime": "x", "updateTime": "y"},
+        {"name": "x", "uid": "tpl-real", "type": "base", "description": "",
+         "state": "draft", "analyzedState": "valid", "isFactory": False,
+         "hasSubmissions": False, "createTime": "x", "updateTime": "y"},
+    ]
+    result = run_sync(mock_nim, tmp_path, "--delete-prefix", "pr-7-")
+    assert result.returncode == 0, result.stderr
+    assert [t["name"] for t in mock_nim.templates] == ["x"]
