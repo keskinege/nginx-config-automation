@@ -76,3 +76,14 @@ def test_rendered_require_mgmt_mismatch_fails(tmp_path):
     result = run_lint(tmp_path, "--rendered", "g")
     assert result.returncode != 0
     assert "does not match group.yaml" in result.stdout
+
+
+def test_failing_group_is_not_reported_ok(tmp_path):
+    group = make_group(tmp_path)
+    (group / "nginx.conf").write_text(
+        "events {}\nhttp {\n    include /etc/nginx/conf.d/*.conf;\n}\n"
+    )
+    result = run_lint(tmp_path)
+    assert result.returncode == 1
+    assert "lint: g ok" not in result.stdout
+    assert "mgmt" in result.stdout

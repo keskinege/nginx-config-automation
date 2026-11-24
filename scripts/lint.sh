@@ -46,6 +46,7 @@ fi
 
 for gdir in groups/*/; do
   g=$(basename "$gdir")
+  grc=0
   mode=$("$SCRIPT_DIR/group-mode.sh" "${gdir%/}")
   if [ "$mode" = template ]; then
     echo "lint: $g skipped (template)"
@@ -61,35 +62,32 @@ for gdir in groups/*/; do
   declared=$(yq -r '.name // ""' "$gdir/group.yaml")
   if [ "$declared" != "$g" ]; then
     echo "::error file=$gdir/group.yaml::name '$declared' does not match directory '$g'"
-    rc=1
+    grc=1
   fi
 
   while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     echo "::error::tab character: $hit"
-    rc=1
+    grc=1
   done < <(grep -rn $'\t' "$gdir" || true)
 
   while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     echo "::error::trailing whitespace: $hit"
-    rc=1
+    grc=1
   done < <(grep -rnE ' +$' "$gdir" || true)
 
   if ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/conf\.d/\*\.conf;' "$gdir/nginx.conf"; then
     echo "::error file=$gdir/nginx.conf::must include /etc/nginx/conf.d/*.conf"
-    rc=1
+    grc=1
   fi
 
-  # Explicit includes under /etc/nginx must exist in the tree. This catches
-  # static trees that silently rely on an image-provided file (e.g. mime.types)
-  # and would break a rollback after a template publish manages that file.
   while IFS= read -r inc; do
     [ -n "$inc" ] || continue
     rel=${inc#/etc/nginx/}
     if [ ! -f "$gdir/$rel" ]; then
       echo "::error file=${gdir%/}/nginx.conf::include $inc is not present in the group tree"
-      rc=1
+      grc=1
     fi
   done < <(grep -rhoE '^[[:space:]]*include[[:space:]]+/etc/nginx/[^;*]+;' "$gdir/nginx.conf" \
     | sed -E 's/^[[:space:]]*include[[:space:]]+//; s/;$//')
@@ -97,21 +95,25 @@ for gdir in groups/*/; do
   require_mgmt=$(yq -r '.require_mgmt // false' "$gdir/group.yaml")
   if [ "$require_mgmt" = "true" ] && ! grep -qE '^mgmt[[:space:]]*\{' "$gdir/nginx.conf"; then
     echo "::error file=$gdir/nginx.conf::must keep the mgmt { usage_report ... } block (main context)"
-    rc=1
+    grc=1
   fi
 
   servers=$(grep -rnE 'listen[[:space:]]+80\b' "$gdir" | wc -l | tr -d ' ')
   defaults=$(grep -rnE 'listen[[:space:]]+80[[:space:]]+default_server' "$gdir" | wc -l | tr -d ' ')
   if [ "$servers" -gt 0 ] && [ "$defaults" -eq 0 ]; then
     echo "::error file=$gdir::a :80 server exists but none is default_server"
-    rc=1
+    grc=1
   fi
   if [ "$defaults" -gt 1 ]; then
     echo "::error file=$gdir::more than one 'listen 80 default_server' in the tree"
-    rc=1
+    grc=1
   fi
 
-  echo "lint: $g ok" || true
+  if [ "$grc" -eq 0 ]; then
+    echo "lint: $g ok"
+  else
+    rc=1
+  fi
 done
 
 if [ "$rc" -eq 0 ]; then echo "lint: all groups ok"; fi
