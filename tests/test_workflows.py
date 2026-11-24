@@ -38,3 +38,14 @@ def test_secrets_are_not_interpolated_inside_run_blocks():
         for step in _steps(text):
             run = step.get("run") or ""
             assert "${{ secrets." not in run, f"{name}: secret inside run: block"
+
+
+def test_drift_uses_the_read_only_validator():
+    import yaml
+
+    doc = yaml.safe_load(TEMPLATE)
+    steps = doc["jobs"]["drift"]["steps"]
+    env = {}
+    for step in steps:
+        env.update(step.get("env") or {})
+    assert env.get("NIM_USER") == "${{ secrets.NIM_VALIDATOR_USER }}"

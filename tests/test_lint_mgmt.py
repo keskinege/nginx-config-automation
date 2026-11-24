@@ -87,3 +87,19 @@ def test_failing_group_is_not_reported_ok(tmp_path):
     assert result.returncode == 1
     assert "lint: g ok" not in result.stdout
     assert "mgmt" in result.stdout
+
+
+def test_lint_group_limits_the_scope(tmp_path):
+    good = make_group(tmp_path)
+    (good / "nginx.conf").write_text(
+        "events {}\nhttp {\n    include /etc/nginx/conf.d/*.conf;\n}\n"
+        "mgmt { usage_report endpoint=nim-mgmt-endpoint.invalid; }\n"
+    )
+    bad = tmp_path / "groups" / "broken"
+    bad.mkdir(parents=True)
+    (bad / "group.yaml").write_text("name: broken\ndeploy_mode: static\n")
+    (bad / "nginx.conf").write_text("events {}\n")  # no include, no mgmt
+
+    result = run_lint(tmp_path, "--group", "g")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "broken" not in result.stdout

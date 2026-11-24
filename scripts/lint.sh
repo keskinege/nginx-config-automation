@@ -40,12 +40,23 @@ if [ "${1:-}" = "--rendered" ]; then
   exit "$rc"
 fi
 
-if compgen -G "groups/*/inputs.yaml" >/dev/null; then
+ONLY=""
+if [ "${1:-}" = "--group" ]; then
+  ONLY="${2:?usage: lint.sh --group GROUP}"
+  [ -f "groups/$ONLY/group.yaml" ] || { echo "::error::no group $ONLY"; exit 2; }
+fi
+
+if [ -n "$ONLY" ]; then
+  if [ -f "groups/$ONLY/inputs.yaml" ]; then
+    python3 "$SCRIPT_DIR/lint-inputs.py" "groups/$ONLY/inputs.yaml" || rc=1
+  fi
+elif compgen -G "groups/*/inputs.yaml" >/dev/null; then
   python3 "$SCRIPT_DIR/lint-inputs.py" groups/*/inputs.yaml || rc=1
 fi
 
 for gdir in groups/*/; do
   g=$(basename "$gdir")
+  [ -z "$ONLY" ] || [ "$ONLY" = "$g" ] || continue
   grc=0
   mode=$("$SCRIPT_DIR/group-mode.sh" "${gdir%/}")
   if [ "$mode" = template ]; then

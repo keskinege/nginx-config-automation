@@ -75,7 +75,7 @@ jobs:
           NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
         run: |
           set -euo pipefail
-          ./scripts/lint.sh
+          ./scripts/lint.sh --group "${{ matrix.group }}"
           ./scripts/nginx-test-dir.sh "groups/${{ matrix.group }}"
 
       - name: back up the config currently live on the group

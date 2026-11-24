@@ -100,6 +100,8 @@ def make_handler(state: MockNIM):
                 self._send(200, {"items": list(state.template_files.get(uid, {}).values())})
             elif self.path.startswith("/api/platform/v1/conf-templates"):
                 self._send(200, {"items": state.templates, "count": len(state.templates)})
+            elif self.path == "/api/platform/v1/instance-groups/group-1/instances":
+                self._send(200, {"items": state.group_instances})
             elif self.path == "/api/platform/v1/instance-groups":
                 self._send(200, {"items": [{
                     "name": "test-group", "uid": "group-1",

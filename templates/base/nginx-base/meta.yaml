@@ -9,3 +9,5 @@ files:
   - source: README.md
   - source: aux/etc/nginx/mime.types
     target: /etc/nginx/mime.types
+  - source: aux/etc/nginx/certs/nim-ca.pem
+    target: /etc/nginx/certs/nim-ca.pem

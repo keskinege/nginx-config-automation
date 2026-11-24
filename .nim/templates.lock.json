@@ -1,9 +1,10 @@
 {
   "nginx-base": {
     "files": {
+      "/etc/nginx/certs/nim-ca.pem": "36af0faae5d64af5cdcab2152a04ec5675ae0c4341232f6f704d3664f12d254f",
       "/etc/nginx/mime.types": "6f95d1d7d75e3c072907d845622a69d23110d1266c16ff122b3109b8b21f3ae9",
       "README.md": "d1e5bb522e1afd82170a570e52e8f3c33f56ac4761b488246e8d97db99b86cab",
-      "base.tmpl": "d18efbf4ac0189c8163f04e772b3ae8d55833af2ede73befb977a48562d7b1a3",
+      "base.tmpl": "cd002ae5b4941eaf6afa86bb50da04252758fd67df15c7eaff8d80e1315ea69a",
       "http.json": "c14972f9f6173e411c41b4ac09432044f2c0e1cdad162245305c3c37699a5736",
       "main.json": "45babeadf99869997248ea4e4d31c4540b562dc969bf1758db624af6280a51e1"
     },

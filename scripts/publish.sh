@@ -48,6 +48,14 @@ if [ -z "$GROUP_UID" ] || [ "$GROUP_UID" = "null" ]; then
   exit 1
 fi
 MEMBERS=$(jq -r --arg n "$GROUP" '[.items[]? | select(.name==$n) | (.instances // []) | length][0] // 0' <<<"$group_doc")
+if [ "$MEMBERS" = "0" ]; then
+  # The list endpoint may omit instances; ask the group itself before deciding
+  # that a partial deployment is complete.
+  instances=$(api "$BASE/instance-groups/$GROUP_UID/instances" || true)
+  if jq -e '.items' >/dev/null 2>&1 <<<"$instances"; then
+    MEMBERS=$(jq -r '.items | length' <<<"$instances")
+  fi
+fi
 
 CURRENT_CONFIG=$(api "$BASE/instance-groups/$GROUP_UID/config")
 UPDATE_TIME=$(jq -r '.updateTime // .createTime' <<<"$CURRENT_CONFIG")
@@ -206,6 +214,11 @@ if [ -n "$err" ]; then
 fi
 if [ "$ok" = "0" ] && [ "$MEMBERS" != "0" ]; then
   echo "::error::no instance applied the config"
+  exit 1
+fi
+finished=$((ok + fail))
+if [ "$MEMBERS" != "0" ] && [ "$finished" -lt "$MEMBERS" ] && [ "${ALLOW_PARTIAL:-0}" != "1" ]; then
+  echo "::error::$((MEMBERS - finished)) of $MEMBERS member(s) did not report an outcome; set ALLOW_PARTIAL=1 to accept a partial apply"
   exit 1
 fi
 
