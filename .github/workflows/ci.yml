@@ -35,20 +35,35 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          static=false
+          template=false
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             static=true; template=true
           elif ! diff=$(git diff --name-only "$base" "$GITHUB_SHA"); then
             static=true; template=true
           else
-            if printf '%s\n' "$diff" | grep -qE '^(groups/static-cluster/|scripts/|requirements-dev.txt|pytest.ini|\.github/)'; then
+            shared='^(scripts/|requirements-dev\.txt|pytest\.ini|\.github/)'
+            if grep -qE "$shared" <<<"$diff"; then
               static=true
-            else
-              static=false
-            fi
-            if printf '%s\n' "$diff" | grep -qE '^(templates/|\.nim/|scripts/|groups/[^/]+/(inputs|group)\.yaml)'; then
               template=true
-            else
-              template=false
+            fi
+            if grep -qE '^groups/' <<<"$diff"; then
+              if changed=$(./scripts/detect-groups.sh static "$base" "$GITHUB_SHA" push); then
+                [ "$changed" = "-" ] || static=true
+              else
+                echo "::error::static group detection failed"
+                exit 2
+              fi
+            fi
+            if grep -qE '^(templates/|\.nim/)' <<<"$diff"; then
+              template=true
+            elif grep -qE '^groups/' <<<"$diff"; then
+              if changed=$(./scripts/detect-groups.sh template "$base" "$GITHUB_SHA" push); then
+                [ "$changed" = "-" ] || template=true
+              else
+                echo "::error::template group detection failed"
+                exit 2
+              fi
             fi
           fi
           echo "static=$static" >> "$GITHUB_OUTPUT"
