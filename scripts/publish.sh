@@ -69,18 +69,19 @@ trap 'rm -f "$PAYLOAD"' EXIT
 python3 - "$CONFIG_DIR" "$ROOT_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$EXTERNAL_ID_TYPE" "$AUX_FILES" \
   "$NIM_MGMT_ENDPOINT" "$MGMT_PLACEHOLDER" > "$PAYLOAD" <<'PY'
 import base64, json, os, sys
+sys.path.insert(0, "scripts")
+from select_files import managed
 (config_dir, root, update_time, external_id, external_id_type, aux_json,
  mgmt_endpoint, mgmt_placeholder) = sys.argv[1:9]
 placeholder = mgmt_placeholder.encode()
 endpoint = mgmt_endpoint.encode()
 files = []
-EXCLUDED = {"group.yaml", "inputs.yaml", "render-manifest.txt", ".DS_Store"}
 for dirpath, dirnames, names in os.walk(config_dir):
-    dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+    dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
     for name in names:
         full = os.path.join(dirpath, name)
         rel = os.path.relpath(full, config_dir).replace(os.sep, "/")
-        if rel in EXCLUDED or name.startswith(".") or name.endswith(".lock.json"):
+        if not managed(rel):
             continue
         data = open(full, "rb").read()
         if endpoint:
@@ -116,17 +117,38 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
 fi
 
 resp=$(mktemp)
-code=$(api -o "$resp" -w '%{http_code}' -X POST \
+# Never retry the POST: a retry after a timeout sends a stale updateTime and
+# gets 412 even though the first attempt applied the config. On a transport
+# error, ask NIM whether this externalId is already stored.
+rc=0
+code=$("${CURL[@]}" -o "$resp" -w '%{http_code}' -X POST \
   "$BASE/instance-groups/$GROUP_UID/config" \
-  -H 'Content-Type: application/json' -d @"$PAYLOAD")
+  -H 'Content-Type: application/json' -d @"$PAYLOAD") || rc=$?
 
-if [ "$code" != "202" ] && [ "$code" != "200" ]; then
+if [ "$rc" != "0" ]; then
+  echo "::warning::publish POST failed at the transport level (curl $rc); not retrying"
+  doc=$(api "$BASE/instance-groups/$GROUP_UID") || true
+  if jq -e --arg e "$EXTERNAL_ID" \
+      '[(.configVersion.versions // [])[].externalId] | index($e)' \
+      <<<"$doc" >/dev/null 2>&1; then
+    DEPLOY=$(jq -r '.lastDeploymentDetails.id // empty' <<<"$doc")
+    echo "publish: externalId=$EXTERNAL_ID is stored despite the transport error"
+    if [ -z "$DEPLOY" ]; then
+      echo "ok: externalId=$EXTERNAL_ID stored (no deployment id reported)"
+      exit 0
+    fi
+  else
+    echo "::error::publish POST failed (curl $rc) and externalId=$EXTERNAL_ID is not stored"
+    exit 1
+  fi
+elif [ "$code" != "202" ] && [ "$code" != "200" ]; then
   echo "::error::publish rejected (HTTP $code)"
   head -c 800 "$resp"; echo
   exit 1
+else
+  DEPLOY=$(jq -r '.deploymentUID' "$resp")
 fi
 
-DEPLOY=$(jq -r '.deploymentUID' "$resp")
 echo "deployment=$DEPLOY"
 
 # A fresh deployment record exists before its details are populated, so wait for

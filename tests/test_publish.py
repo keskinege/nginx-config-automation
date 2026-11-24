@@ -70,3 +70,15 @@ def test_dot_directories_are_not_published(mock_nim, tmp_path):
     result = run_publish(mock_nim, "test-group", tree, DRY_RUN=1)
     assert result.returncode == 0, result.stderr
     assert ".vscode" not in result.stdout
+
+
+def test_post_is_not_retried_and_a_lost_response_is_recovered(mock_nim, tmp_path):
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "nginx.conf").write_text("events {}\n")
+    mock_nim.drop_next_post = True
+
+    result = run_publish(mock_nim, "test-group", tree)
+    posts = [r for r in mock_nim.requests if r[0] == "POST" and r[1].endswith("/config")]
+    assert len(posts) == 1, f"POST retried {len(posts)} times"
+    assert result.returncode == 0, result.stdout + result.stderr

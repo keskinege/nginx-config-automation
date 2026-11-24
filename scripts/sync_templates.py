@@ -188,7 +188,9 @@ def write_lock(path: pathlib.Path, lock: dict) -> None:
     path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
 
 
-def check(nim: NIM, local: list[dict], remote: dict[str, dict]) -> int:
+def check(nim: NIM, local: list[dict], remote: dict[str, dict],
+          lock: dict | None = None) -> int:
+    lock = lock or {}
     drift: list[str] = []
     for entry in local:
         name = entry["meta"]["name"]
@@ -196,6 +198,13 @@ def check(nim: NIM, local: list[dict], remote: dict[str, dict]) -> int:
         if not item:
             drift.append(f"{name}: missing in NIM")
             continue
+        recorded = lock.get(name)
+        if isinstance(recorded, dict):
+            recorded = recorded.get("uid")
+        if recorded and item.get("uid") and recorded != item["uid"]:
+            drift.append(
+                f"{name}: NIM UID {item['uid']} != lock {recorded} (recreated?)"
+            )
         if item.get("type") != entry["meta"]["type"]:
             drift.append(f"{name}: type {item.get('type')} != {entry['meta']['type']}")
         remote_files = nim.files(item["uid"])
@@ -301,7 +310,7 @@ def main() -> int:
     nim = NIM()
     remote = nim.list_templates()
     if args.check:
-        return check(nim, local, remote)
+        return check(nim, local, remote, load_lock(lock_path))
     return apply(nim, local, remote, lock_path, args.dry_run, args.no_prune)
 
 
