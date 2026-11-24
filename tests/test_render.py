@@ -75,3 +75,20 @@ def test_render_refuses_an_existing_directory_without_a_manifest(mock_nim, repo_
     assert result.returncode == 1
     assert "render-manifest" in (result.stdout + result.stderr)
     assert (out / "keep.txt").exists()
+
+
+def test_template_prefix_resolves_the_throwaway_namespace(mock_nim, repo_group, tmp_path):
+    mock_nim.templates = [{
+        "name": "pr-7-nginx-base", "uid": "tpl-pr-base", "description": "",
+        "state": "draft", "analyzedState": "valid", "type": "base",
+        "isFactory": False, "hasSubmissions": False,
+        "createTime": "x", "updateTime": "y",
+    }]
+    out = tmp_path / "out"
+    result = run_render(mock_nim, repo_group, out, TEMPLATE_PREFIX="pr-7-",
+                        WRITE_HASH=1, HASH_FILE=tmp_path / "hash.json")
+    assert result.returncode == 0, result.stderr
+    composed = [b for m, p, b in mock_nim.requests if m == "PUT" and b]
+    assert composed, [r for r in mock_nim.requests if r[0] == "PUT"]
+    dumped = json.dumps(composed)
+    assert "tpl-pr-base" in dumped, dumped[:400]

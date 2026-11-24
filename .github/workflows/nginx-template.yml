@@ -140,6 +140,15 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: sync templates to NIM
+        if: matrix.group != '-'
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+          NIM_USER: ${{ secrets.NIM_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+        run: python3 scripts/sync_templates.py --all
+
       - name: render from templates
         if: matrix.group != '-'
         env:

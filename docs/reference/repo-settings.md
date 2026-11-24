@@ -16,6 +16,7 @@ job, but `ci-gate` still reports.
 | `NIM_URL` | repository | `https://manager-server` (the certificate SAN) |
 | `NIM_HOST` | repository | address a GitHub runner can reach; used by `--resolve` and `/etc/hosts` |
 | `NIM_USER` / `NIM_PASSWORD` | **`nim` environment** (`main` only) | the local `admin` credential; publish jobs only |
+| `NIM_TEMPLATE_WRITER_USER` / `NIM_TEMPLATE_WRITER_PASSWORD` | **`validate` environment** | `ci-template-writer`: `TEMPLATES` create/read/update/delete only; PR CI publishes `pr-<n>-` templates and deletes them |
 | `NIM_VALIDATOR_USER` / `NIM_VALIDATOR_PASSWORD` | repository | `ci-validator`: templates/groups read + compose; no publish or user management |
 | `NIM_MGMT_ENDPOINT` | repository | `mgmt usage_report` endpoint, substituted at render/publish |
 | `NGINX_REPO_CRT` | **`validate`** (PR jobs) and **`nim`** (deploy jobs) | F5 registry client certificate (`nginx-repo.crt`) |
