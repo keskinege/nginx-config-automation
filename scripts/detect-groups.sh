@@ -31,6 +31,15 @@ emit() {
   done
 }
 
+# A push whose `before` is unknown (history rewrite, force-push, fresh clone)
+# cannot be diffed; treat it as "everything changed" rather than failing.
+if [ "$event" = "push" ] && [ -n "$before" ] && \
+   [ "$before" != "0000000000000000000000000000000000000000" ] && \
+   ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+  echo "detect: before=$before is unknown; selecting every group" >&2
+  before=""
+fi
+
 if [ "$event" != "push" ] || [ -z "$before" ] || \
    [ "$before" = "0000000000000000000000000000000000000000" ]; then
   groups=$("$SCRIPT_DIR/list-groups.sh" "$mode") || exit 2

@@ -64,3 +64,25 @@ def test_typo_mode_fails(tmp_path):
     )
     assert result.returncode != 0
     assert "must be 'static' or 'template'" in result.stderr
+
+
+def test_unknown_before_commit_falls_back_to_every_group(tmp_path):
+    repo = tmp_path
+    git(repo, "init", "-q")
+    git(repo, "config", "user.email", "t@example.invalid")
+    git(repo, "config", "user.name", "t")
+    group = repo / "groups" / "one-cluster"
+    group.mkdir(parents=True)
+    (group / "group.yaml").write_text("name: one-cluster\ndeploy_mode: static\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "one")
+    head = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+
+    bogus = "0123456789abcdef0123456789abcdef01234567"
+    result = subprocess.run(
+        [str(REPO / "scripts" / "detect-groups.sh"), "static", bogus, head, "push"],
+        cwd=repo, text=True, capture_output=True, env=env_for(repo),
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == ["one-cluster"]
