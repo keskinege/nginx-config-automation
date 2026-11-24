@@ -105,7 +105,9 @@ jobs:
 
       - name: map the NIM name
         if: matrix.group != '-'
-        run: echo "${{ secrets.NIM_HOST }} manager-server" | sudo tee -a /etc/hosts
+        env:
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+        run: echo "$NIM_HOST manager-server" | sudo tee -a /etc/hosts
 
       - name: verify templates match NIM
         if: matrix.group != '-'

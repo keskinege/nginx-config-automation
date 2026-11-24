@@ -78,6 +78,7 @@ jobs:
     needs: checks
     if: needs.checks.outputs.static_changed == 'true'
     runs-on: ubuntu-latest
+    environment: validate
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/setup-yq
@@ -94,6 +95,7 @@ jobs:
     needs: checks
     if: needs.checks.outputs.template_changed == 'true'
     runs-on: ubuntu-latest
+    environment: validate
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -102,7 +104,9 @@ jobs:
       - uses: ./.github/actions/setup-yq
       - run: pip install -r requirements-dev.txt
       - name: map the NIM name
-        run: echo "${{ secrets.NIM_HOST }} manager-server" | sudo tee -a /etc/hosts
+        env:
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+        run: echo "$NIM_HOST manager-server" | sudo tee -a /etc/hosts
       - name: verify templates match NIM
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
