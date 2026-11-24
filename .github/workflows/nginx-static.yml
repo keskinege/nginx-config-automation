@@ -60,6 +60,24 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         if: matrix.group != '-'
 
+      - uses: ./.github/actions/setup-yq
+        if: matrix.group != '-'
+
+      - uses: ./.github/actions/setup-plus-registry
+        if: matrix.group != '-'
+        with:
+          crt: ${{ secrets.NGINX_REPO_CRT }}
+          key: ${{ secrets.NGINX_REPO_KEY }}
+
+      - name: validate the tree before publishing
+        if: matrix.group != '-'
+        env:
+          NGINX_PLUS_JWT: ${{ secrets.NGINX_PLUS_JWT }}
+        run: |
+          set -euo pipefail
+          ./scripts/lint.sh
+          ./scripts/nginx-test-dir.sh "groups/${{ matrix.group }}"
+
       - name: back up the config currently live on the group
         if: matrix.group != '-'
         env:
