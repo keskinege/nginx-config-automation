@@ -44,3 +44,24 @@ def test_refuses_to_publish_the_placeholder(mock_nim, repo_group, tmp_path):
     result = render(mock_nim, repo_group, tmp_path / "c", "", tmp_path / "c.json")
     assert result.returncode == 4
     assert "nim-mgmt-endpoint.invalid" in result.stderr
+
+
+def test_normalization_leaves_other_occurrences_alone():
+    from scripts.tree_hash import normalize_endpoint
+
+    body = (
+        b"http {\n"
+        b"  proxy_pass http://10.0.0.5:9000;\n"
+        b"  mgmt { usage_report    endpoint=10.0.0.5; }\n"
+        b"}\n"
+    )
+    out = normalize_endpoint({"nginx.conf": body}, "10.0.0.5")["nginx.conf"]
+    assert b"proxy_pass http://10.0.0.5:9000;" in out
+    assert b"endpoint=nim-mgmt-endpoint.invalid;" in out
+
+
+def test_normalization_is_a_noop_without_the_endpoint():
+    from scripts.tree_hash import normalize_endpoint
+
+    body = b"mgmt { usage_report endpoint=other.example; }\n"
+    assert normalize_endpoint({"nginx.conf": body}, "")["nginx.conf"] == body
