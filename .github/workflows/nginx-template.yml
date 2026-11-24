@@ -33,8 +33,8 @@ jobs:
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
-          NIM_USER: ${{ secrets.NIM_USER }}
-          NIM_PASSWORD: ${{ secrets.NIM_PASSWORD }}
+          NIM_USER: ${{ secrets.NIM_VALIDATOR_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_VALIDATOR_PASSWORD }}
           NIM_MGMT_ENDPOINT: ${{ secrets.NIM_MGMT_ENDPOINT }}
         run: |
           rc=0

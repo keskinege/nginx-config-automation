@@ -34,6 +34,10 @@ http {
 mgmt {
     usage_report endpoint={{ $mgmtEndpoint }};
     enforce_initial_report off;
-    ssl_verify off;
+    ssl_verify on;
+    ssl_trusted_certificate /etc/nginx/certs/nim-ca.pem;
+    # The served leaf is CN=manager-server; the mgmt endpoint is a different
+    # name, so verification has to use the SAN rather than the URL host.
+    ssl_name manager-server;
 }
 {{ end }}
