@@ -18,6 +18,8 @@ while IFS= read -r inc; do
   [ -n "$inc" ] || continue
   case "$inc" in
     /etc/nginx/*) continue ;;
+    /*) ;;                 # absolute outside /etc/nginx: needs an allowlist entry
+    *) continue ;;         # relative include resolves under the prefix
   esac
   allowed=0
   read -r -a stubs <<<"$ALLOWED"

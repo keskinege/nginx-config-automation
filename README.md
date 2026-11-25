@@ -112,8 +112,9 @@ In-repo under [`docs/`](docs/):
 
 4. Open a PR. Merging publishes only the groups owned by the matching workflow.
 
-A template edit must be applied to NIM with `python3 scripts/sync_templates.py --all` before
-merging; otherwise `render.sh` composes the old NIM template and the hash does not change.
+CI uploads a PR's templates under a throwaway `pr-<number>-<run>-<name>` namespace, renders
+against them and deletes them, so no manual sync is needed before merging. The deploy job syncs
+the real names on `main` before it renders.
 
 ## Templates and inputs
 

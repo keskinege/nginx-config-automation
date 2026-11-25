@@ -75,12 +75,12 @@ The admin credential is in the `nim` environment, `main` only.
 ```mermaid
 flowchart TD
     A["Change under groups/ or templates/"] --> B{"Event"}
-    B -->|pull_request| V["Validate only<br/>pytest, lint.sh, nginx -t, actionlint<br/>template: sync check + render + hash"]
+    B -->|pull_request| V["Validate only<br/>pytest, lint.sh, nginx -t, actionlint<br/>template: pr-<n> namespace + render + hash"]
     V --> C["Review and merge to main"]
     B -->|push to main| C
     C --> D{"deploy_mode of changed group"}
     D -->|static| E["backup-config.sh<br/>snapshot live config"]
-    D -->|template| F["sync_templates --check<br/>render.sh<br/>nginx -t<br/>backup-config.sh"]
+    D -->|template| F["sync_templates --all<br/>render.sh<br/>nginx -t<br/>backup-config.sh"]
     E --> G["publish.sh<br/>externalId = commit SHA"]
     F --> G
     G --> H["NIM stores group config"]
@@ -97,8 +97,11 @@ per static group (the pinned NGINX Plus image).
 
 `template validation` (only when a template path changed):
 
-1. `python3 scripts/sync_templates.py --all --check` — local templates must match NIM
-2. `CHECK_HASH=1` render against `.nim/rendered.lock.json` (also writes the tree)
+1. `python3 scripts/sync_templates.py --all` — upload this PR's templates as
+   `pr-<number>-<run>-<name>` (a scoped writer account; the namespace is deleted in an `always()`
+   step)
+2. `TEMPLATE_PREFIX=pr-…` with `CHECK_HASH=1` — the render hash names augment files by template,
+   so it matches `.nim/rendered.lock.json` in any namespace
 3. `./scripts/lint.sh --rendered <group>`
 4. `./scripts/nginx-test-dir.sh rendered/<group>`
 
@@ -156,13 +159,9 @@ flowchart LR
 ```
 
 1. Edit the template under `templates/`, or the group's `inputs.yaml`.
-2. Apply template edits to NIM **before merging**:
-
-   ```bash
-   NIM_URL=… NIM_USER=… NIM_PASSWORD=… python3 scripts/sync_templates.py --all
-   ```
-
-   CI runs `--check` and fails if NIM and Git differ.
+2. Template edits need no manual sync: PR CI uploads them under a throwaway namespace. The
+   deploy job runs `sync_templates.py --all` on `main` before it renders, so NIM always holds the
+   merged template.
 3. Render and lock the hash:
 
    ```bash

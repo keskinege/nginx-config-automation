@@ -18,6 +18,7 @@ from typing import NoReturn
 
 import argparse
 import base64
+import datetime
 import hashlib
 import json
 import os
@@ -293,14 +294,31 @@ def apply(nim: NIM, local: list[dict], remote: dict[str, dict], lock_path: pathl
     return 0
 
 
-def delete_prefix(nim: NIM, prefix: str, dry_run: bool) -> int:
-    """Delete every NIM template whose name starts with prefix."""
+def delete_prefix(nim: NIM, prefix: str, dry_run: bool,
+                  older_than_hours: float = 0) -> int:
+    """Delete NIM templates whose name starts with prefix.
+
+    older_than_hours skips templates created recently, so a scheduled sweep
+    cannot delete the namespace of a run that is still in flight.
+    """
     if not prefix:
         fail("sync_templates: refusing an empty --delete-prefix")
+    cutoff = None
+    if older_than_hours > 0:
+        cutoff = (datetime.datetime.now(datetime.timezone.utc)
+                  - datetime.timedelta(hours=older_than_hours))
     deleted = 0
     for name, item in sorted(nim.list_templates().items()):
         if not name.startswith(prefix):
             continue
+        if cutoff is not None:
+            created = item.get("createTime") or ""
+            try:
+                when = datetime.datetime.fromisoformat(created.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if when > cutoff:
+                continue
         print(f"sync: delete template {name}")
         if not dry_run:
             nim.delete_template(item["uid"])
@@ -325,6 +343,12 @@ def main() -> int:
         "--delete-prefix",
         help="Delete every NIM template whose name starts with this prefix.",
     )
+    parser.add_argument(
+        "--older-than-hours",
+        type=float,
+        default=0,
+        help="With --delete-prefix, only delete templates older than this many hours.",
+    )
     args = parser.parse_args()
 
     templates_dir = pathlib.Path(os.environ.get("TEMPLATES_DIR", ROOT / "templates"))
@@ -342,7 +366,8 @@ def main() -> int:
 
     nim = NIM()
     if args.delete_prefix:
-        return delete_prefix(nim, args.delete_prefix, args.dry_run)
+        return delete_prefix(nim, args.delete_prefix, args.dry_run,
+                             args.older_than_hours)
     remote = nim.list_templates()
     if args.check:
         return check(nim, local, remote, load_lock(lock_path))

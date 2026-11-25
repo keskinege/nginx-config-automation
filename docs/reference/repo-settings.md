@@ -23,6 +23,9 @@ job, but `ci-gate` still reports.
 | `NGINX_REPO_KEY` | **`validate`** and **`nim`** | F5 registry client key (`nginx-repo.key`) |
 | `NGINX_PLUS_JWT` | **`validate`** and **`nim`** | runtime NGINX Plus license for `nginx -t` |
 
+The `validate` environment requires a reviewer, because PR jobs that touch templates use the
+`ci-template-writer` account. `template-sweep.yml` deletes `pr-*` templates older than 12 hours.
+
 The `nim` environment allows deployment only from `main`; it holds the admin credential for the
 publish and drift jobs. PR validation uses `ci-validator`, a separate htpasswd entry plus a NIM role
 limited to `TEMPLATES: READ`, `TEMPLATE-SUBMISSIONS: READ` and `INSTANCE-GROUPS: READ`. It can

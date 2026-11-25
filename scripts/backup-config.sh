@@ -56,7 +56,7 @@ PLACEHOLDER="nim-mgmt-endpoint.invalid"
 
 python3 - "$OUT_DIR" "$GROUP" "$GROUP_UID" "${EXTERNAL_ID:-unknown}" \
   "${EXTERNAL_ID_TYPE:-git}" "$NIM_MGMT_ENDPOINT" "$PLACEHOLDER" <<'PY'
-import base64, datetime, json, pathlib, re, sys
+import base64, datetime, hashlib, json, pathlib, re, sys
 
 out_dir, group = sys.argv[1], sys.argv[2]
 uid, trigger, trigger_type, endpoint, placeholder = sys.argv[3:8]
@@ -98,10 +98,19 @@ def redact(data: bytes, name: str) -> bytes:
 
 
 files = []
+aux = []
 for section in ("configFiles", "auxFiles"):
     for f in (cfg.get(section) or {}).get("files") or []:
         name = f["name"]
         data = base64.b64decode(f.get("contents") or "")
+        if section == "auxFiles":
+            # Aux is whatever NIM holds outside Git (certs, keys). It is not part
+            # of the restore payload: restore.sh takes aux from the live group.
+            # Keep only the name and digest, and never write the bytes to disk.
+            f.pop("contents", None)
+            f["sha256"] = hashlib.sha256(data).hexdigest()
+            aux.append((name, f["sha256"]))
+            continue
         data = redact(data, name)
         f["contents"] = base64.b64encode(data).decode()
         dest = out / name.lstrip("/")
@@ -130,6 +139,7 @@ external = versions[-1].get("externalId") if versions else None
     f"trigger_type={trigger_type}",
     f"managed_files={len(files)}",
     *[f"file={name}" for name in files],
+    *[f"aux={name} sha256={digest}" for name, digest in aux],
 ]) + "\n")
 
 print("\n".join([

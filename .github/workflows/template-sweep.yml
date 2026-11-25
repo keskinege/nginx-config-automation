@@ -1,0 +1,25 @@
+name: template sweep
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: delete stale PR template namespaces
+    runs-on: ubuntu-latest
+    environment: validate
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup-yq
+      - name: delete pr-* templates older than 12 hours
+        env:
+          NIM_URL: ${{ secrets.NIM_URL }}
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+          NIM_USER: ${{ secrets.NIM_TEMPLATE_WRITER_USER }}
+          NIM_PASSWORD: ${{ secrets.NIM_TEMPLATE_WRITER_PASSWORD }}
+        run: python3 scripts/sync_templates.py --delete-prefix "pr-" --older-than-hours 12

@@ -160,3 +160,19 @@ def test_delete_prefix_removes_only_that_namespace(mock_nim, tmp_path):
     result = run_sync(mock_nim, tmp_path, "--delete-prefix", "pr-7-")
     assert result.returncode == 0, result.stderr
     assert [t["name"] for t in mock_nim.templates] == ["x"]
+
+
+def test_delete_prefix_can_skip_fresh_templates(mock_nim, tmp_path):
+    write_template(tmp_path)
+    now = "2099-01-01T00:00:00Z"
+    mock_nim.templates = [
+        {"name": "pr-1-old-x", "uid": "tpl-old", "type": "base", "description": "",
+         "state": "draft", "analyzedState": "valid", "isFactory": False,
+         "hasSubmissions": False, "createTime": "2000-01-01T00:00:00Z", "updateTime": "x"},
+        {"name": "pr-1-new-x", "uid": "tpl-new", "type": "base", "description": "",
+         "state": "draft", "analyzedState": "valid", "isFactory": False,
+         "hasSubmissions": False, "createTime": now, "updateTime": "x"},
+    ]
+    result = run_sync(mock_nim, tmp_path, "--delete-prefix", "pr-1-", "--older-than-hours", "1")
+    assert result.returncode == 0, result.stderr
+    assert [t["name"] for t in mock_nim.templates] == ["pr-1-new-x"]

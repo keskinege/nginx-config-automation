@@ -252,6 +252,7 @@ def fail(message, code=1):
 # Reuse the canonical tree hash so `tree_hash.py` and `render.sh` agree.
 sys.path.insert(0, str(pathlib.Path("scripts").resolve()))
 from tree_hash import hash_files
+from uid_names import rename_paths
 
 resp = json.loads(pathlib.Path(resp_path).read_text())
 out = pathlib.Path(out_dir)
@@ -283,8 +284,12 @@ for section in ("configFiles", "auxFiles"):
         files[rel] = data
 
 # Hash the placeholder tree first: this is the reviewed, endpoint-independent
-# tree. Then substitute the real endpoint for the bytes we write and publish.
-canonical = hash_files(files, strip_template_tags=True)
+# tree. UIDs become template names so a throwaway pr-<n>- namespace hashes
+# exactly like the real one. Then substitute the real endpoint for the bytes we
+# write and publish.
+resolved = json.loads(pathlib.Path(resolved_path).read_text())
+uid_to_name = {str(uid): str(name) for name, uid in resolved.items()}
+canonical = hash_files(rename_paths(files, uid_to_name), strip_template_tags=True)
 placeholder = mgmt_placeholder.encode()
 endpoint = mgmt_endpoint.encode()
 if endpoint:
@@ -298,7 +303,6 @@ elif any(placeholder in data for data in files.values()):
 published = hash_files(files, strip_template_tags=True)
 info = canonical
 body_digest = hashlib.sha256(pathlib.Path(body_path).read_bytes()).hexdigest()
-resolved = json.loads(pathlib.Path(resolved_path).read_text())
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 if expected_sha and expected_sha != info["sha256"]:
