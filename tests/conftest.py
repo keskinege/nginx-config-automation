@@ -52,6 +52,7 @@ class MockNIM:
         self.group_config_files: list[dict] | None = None
         self.group_aux_files: list[dict] | None = None
         self.group_instances = [{"name": "m1"}]
+        self.list_includes_instances = True
         self.last_config_external_id: str | None = None
         self.drop_next_post = False
         self.systems = [
@@ -103,10 +104,10 @@ def make_handler(state: MockNIM):
             elif self.path == "/api/platform/v1/instance-groups/group-1/instances":
                 self._send(200, {"items": state.group_instances})
             elif self.path == "/api/platform/v1/instance-groups":
-                self._send(200, {"items": [{
-                    "name": "test-group", "uid": "group-1",
-                    "instances": state.group_instances,
-                }]})
+                item = {"name": "test-group", "uid": "group-1"}
+                if state.list_includes_instances:
+                    item["instances"] = state.group_instances
+                self._send(200, {"items": [item]})
             elif self.path == "/api/platform/v1/instance-groups/group-1":
                 versions = []
                 if state.last_config_external_id:

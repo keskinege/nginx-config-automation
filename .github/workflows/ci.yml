@@ -111,14 +111,11 @@ jobs:
         name: choose the template namespace
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "value=pr-${{ github.event.pull_request.number }}-" >> "$GITHUB_OUTPUT"
-            # A prefixed namespace has its own template UIDs, and NIM names the
-            # composed augment files after them, so the tree cannot equal a lock
-            # built from the real UIDs. The lock is enforced at deploy instead.
-            echo "hash=0" >> "$GITHUB_OUTPUT"
+            # One namespace per run: a cancelled older run must not delete the
+            # templates of a newer run of the same PR.
+            echo "value=pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-" >> "$GITHUB_OUTPUT"
           else
             echo "value=" >> "$GITHUB_OUTPUT"
-            echo "hash=1" >> "$GITHUB_OUTPUT"
           fi
 
       - name: verify templates match NIM
@@ -155,7 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           for g in $(./scripts/list-groups.sh template); do
-            GROUP="$g" OUT_DIR="rendered/$g" CHECK_HASH="${{ steps.prefix.outputs.hash }}" \
+            GROUP="$g" OUT_DIR="rendered/$g" CHECK_HASH=1 \
               HASH_FILE=.nim/rendered.lock.json ./scripts/render.sh
             ./scripts/lint.sh --rendered "$g"
             ./scripts/nginx-test-dir.sh "rendered/$g"

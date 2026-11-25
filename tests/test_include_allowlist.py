@@ -39,3 +39,11 @@ def test_the_per_member_tls_include_is_an_allowed_stub(tmp_path):
         "events {}\nhttp { include /etc/nginx-tls/server.conf; }\n"
     )
     assert run(tmp_path).returncode == 0
+
+
+def test_a_relative_include_is_valid(tmp_path):
+    (tmp_path / "mime.types").write_text("types {}\n")
+    (tmp_path / "nginx.conf").write_text(
+        "events {}\nhttp {\n  include mime.types;\n}\n"
+    )
+    assert run(tmp_path).returncode == 0

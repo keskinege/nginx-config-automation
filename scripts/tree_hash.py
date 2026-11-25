@@ -29,8 +29,10 @@ import zlib
 
 try:  # executed as a script
     from select_files import managed
+    from uid_names import rename
 except ImportError:  # imported as scripts.tree_hash
     from .select_files import managed
+    from .uid_names import rename
 
 PREFIX = b"nginx-config-tree-v1\0"
 EXCLUDED = {"render-manifest.txt", ".DS_Store"}
@@ -108,6 +110,7 @@ def hash_tree(
     root: str | pathlib.Path,
     excludes: tuple[str, ...] = (),
     strip_template_tags: bool = False,
+    uid_map: dict[str, str] | None = None,
 ) -> dict[str, object]:
     base = pathlib.Path(root)
     if not base.exists():
@@ -122,6 +125,8 @@ def hash_tree(
         for filename in sorted(filenames):
             path = pathlib.Path(dirpath) / filename
             rel = path.relative_to(base).as_posix()
+            if uid_map:
+                rel = rename(rel, uid_map)
             if not managed(rel) or _is_excluded(rel, filename, excludes):
                 continue
             if not path.is_file():
@@ -142,6 +147,10 @@ def main() -> int:
     )
     parser.add_argument("--json", action="store_true", help="Emit a JSON object.")
     parser.add_argument(
+        "--uid-map",
+        help="JSON object {uid: template name}; renames <uid>.* files before hashing.",
+    )
+    parser.add_argument(
         "--normalize-endpoint",
         metavar="VALUE",
         help="Replace VALUE with nim-mgmt-endpoint.invalid before hashing.",
@@ -153,6 +162,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    uid_map: dict[str, str] = {}
+    if args.uid_map:
+        uid_map = json.loads(pathlib.Path(args.uid_map).read_text())
+
     if args.normalize_endpoint:
         base = pathlib.Path(args.path)
         files: dict[str, bytes] = {}
@@ -161,7 +174,9 @@ def main() -> int:
             for filename in sorted(filenames):
                 path = pathlib.Path(dirpath) / filename
                 rel = path.relative_to(base).as_posix()
-                if _is_excluded(rel, filename, tuple(args.exclude)):
+                if uid_map:
+                    rel = rename(rel, uid_map)
+                if not managed(rel) or _is_excluded(rel, filename, tuple(args.exclude)):
                     continue
                 files[rel] = path.read_bytes()
         info = hash_files(
@@ -169,7 +184,9 @@ def main() -> int:
             args.strip_template_tags,
         )
     else:
-        info = hash_tree(args.path, tuple(args.exclude), args.strip_template_tags)
+        info = hash_tree(
+            args.path, tuple(args.exclude), args.strip_template_tags, uid_map or None
+        )
     if args.json:
         print(json.dumps(info, sort_keys=True))
     else:

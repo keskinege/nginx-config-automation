@@ -103,3 +103,15 @@ def test_allow_partial_accepts_a_silent_member(mock_nim, tmp_path):
 
     result = run_publish(mock_nim, "test-group", tree, ALLOW_PARTIAL=1)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_member_count_falls_back_to_the_group_document(mock_nim, tmp_path):
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "nginx.conf").write_text("events {}\n")
+    mock_nim.list_includes_instances = False
+    mock_nim.group_instances = [{"name": "m1"}, {"name": "m2"}]  # deployment reports 1
+
+    result = run_publish(mock_nim, "test-group", tree)
+    assert result.returncode == 1
+    assert "did not report" in (result.stdout + result.stderr)

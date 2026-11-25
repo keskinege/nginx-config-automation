@@ -1,14 +1,14 @@
 {
   "template-cluster": {
     "bytes": 7938,
-    "crc32": "59b2a208",
+    "crc32": "728a1bb3",
     "files": 4,
     "inputs": "groups/template-cluster/inputs.yaml",
-    "sha256": "52e03ede0fdd3c0e986cf7d0ecbb8c585bd9481f102e7a472023ced721e218d0",
+    "sha256": "303e43c52b758f2661349891906a4e6de5cc2a5e6656498f2a230a72e4042a4e",
     "templates": {
       "nginx-base": "942a6e96-fcfe-4f87-ad58-545abab7996b",
       "site-k8s": "18d90853-ea70-4636-9e94-daa8ce73a2b3"
     },
-    "updatedAt": "2026-11-24T13:28:36Z"
+    "updatedAt": "2026-11-25T08:51:58Z"
   }
 }

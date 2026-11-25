@@ -43,6 +43,11 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
+# Name augment files by template, exactly as render.sh does.
+api "$BASE/conf-templates" \
+  | jq '[.items[]? | select(.uid and .name) | {key: .uid, value: .name}] | from_entries' \
+  > "$tmp/uid-map.json"
+
 api "$BASE/instance-groups/$GROUP_UID/config" > "$tmp/live.json"
 python3 - "$tmp/live.json" "$tmp/tree" "$ROOT_DIR" <<'PY'
 import base64, json, pathlib, sys
@@ -78,6 +83,7 @@ print(f"live files: {sum(1 for p in out.rglob('*') if p.is_file())}")
 PY
 
 live=$(python3 scripts/tree_hash.py "$tmp/tree" --strip-template-tags \
+  --uid-map "$tmp/uid-map.json" \
   --normalize-endpoint "${NIM_MGMT_ENDPOINT:?set NIM_MGMT_ENDPOINT}" \
   | awk -F= '/^sha256=/{print $2}')
 mode=$(scripts/group-mode.sh "groups/$GROUP")

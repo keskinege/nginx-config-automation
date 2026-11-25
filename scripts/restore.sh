@@ -42,6 +42,7 @@ GROUP_UID=$(api "$BASE/instance-groups" \
   echo "::error::instance group '$GROUP' not found"; exit 1; }
 
 CURRENT=$(api "$BASE/instance-groups/$GROUP_UID/config")
+LIVE_AUX=$(printf '%s' "$CURRENT" | jq -c '.auxFiles // {"rootDir":"/","files":[]}')
 UPDATE_TIME=$(jq -r '.updateTime // .createTime' <<<"$CURRENT")
 
 PAYLOAD=$(mktemp)
@@ -49,13 +50,32 @@ RESP=$(mktemp)
 trap 'rm -f "$PAYLOAD" "$RESP"' EXIT
 
 python3 - "$BACKUP_DIR" "$UPDATE_TIME" "$EXTERNAL_ID" "$PLACEHOLDER" \
-  "${NIM_MGMT_ENDPOINT:-}" > "$PAYLOAD" <<'PY'
-import base64, json, pathlib, sys
+  "${NIM_MGMT_ENDPOINT:-}" "$LIVE_AUX" > "$PAYLOAD" <<'PY'
+import base64, hashlib, json, pathlib, sys
 
-backup, update_time, external_id, placeholder, endpoint = sys.argv[1:6]
+backup, update_time, external_id, placeholder, endpoint, live_aux = sys.argv[1:7]
 src = json.loads((pathlib.Path(backup) / "group-config.json").read_text())
 needle = placeholder.encode()
 real = endpoint.encode()
+
+def checked_aux(live, recorded):
+    expected = {
+        item.get("name"): item.get("sha256")
+        for item in (recorded or {}).get("files") or []
+        if item.get("sha256")
+    }
+    for item in live.get("files") or []:
+        want = expected.get(item.get("name"))
+        if not want:
+            continue
+        data = base64.b64decode(item.get("contents") or "")
+        got = hashlib.sha256(data).hexdigest()
+        if got != want:
+            raise SystemExit(
+                f"::error::aux {item['name']} changed since the backup: {want} -> {got}"
+            )
+    return live
+
 
 def fix(block):
     for item in (block or {}).get("files") or []:
@@ -72,7 +92,10 @@ def fix(block):
 print(json.dumps({
     "updateTime": update_time,
     "configFiles": fix(src.get("configFiles")),
-    "auxFiles": src.get("auxFiles") or {"rootDir": "/", "files": []},
+    # The artifact stores aux as name+sha256 only (certs and keys must not be
+    # in a public artifact), so take the bytes from the group as it is now and
+    # verify them against the recorded digest.
+    "auxFiles": checked_aux(json.loads(live_aux), src.get("auxFiles")),
     "externalId": external_id,
     "externalIdType": "other",
 }))

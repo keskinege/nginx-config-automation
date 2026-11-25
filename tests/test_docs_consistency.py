@@ -56,3 +56,9 @@ def test_nginx_test_script_header_names_the_plus_image():
     header = (REPO / "scripts/nginx-test.sh").read_text().splitlines()[1]
     assert "OSS image" not in header
     assert "Plus" in header
+
+
+def test_docs_describe_the_pr_template_namespace():
+    workflow = DOCS["docs/workflow.md"]
+    assert "pr-<number>-<run>-<name>" in workflow
+    assert "--all --check` — local templates must match NIM" not in workflow

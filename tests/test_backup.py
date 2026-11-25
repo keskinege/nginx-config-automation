@@ -122,3 +122,21 @@ def test_backup_redacts_the_endpoint_anywhere_in_the_config(mock_nim, tmp_path):
         assert "nim-mgmt-endpoint.invalid" in config
     finally:
         shutil.rmtree(group, ignore_errors=True)
+
+
+def test_backup_keeps_aux_as_name_and_digest_only(mock_nim, tmp_path):
+    group = REPO / "groups" / "test-group"
+    group.mkdir(parents=True, exist_ok=True)
+    try:
+        out = tmp_path / "backup"
+        result = run_backup(mock_nim, out, NIM_MGMT_ENDPOINT="real.example")
+        assert result.returncode == 0, result.stderr
+        assert not (out / "etc/nginx/tls/tls.crt").exists()
+        payload = json.loads((out / "group-config.json").read_text())
+        aux = payload["auxFiles"]["files"][0]
+        assert aux["name"] == "/etc/nginx/tls/tls.crt"
+        assert "contents" not in aux
+        assert len(aux["sha256"]) == 64
+        assert "aux=/etc/nginx/tls/tls.crt sha256=" in (out / "manifest.txt").read_text()
+    finally:
+        shutil.rmtree(group, ignore_errors=True)

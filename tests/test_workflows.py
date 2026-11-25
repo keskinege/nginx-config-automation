@@ -52,7 +52,7 @@ def test_drift_uses_the_read_only_validator():
 
 
 def test_pr_validation_uses_a_throwaway_template_namespace():
-    assert "pr-${{ github.event.pull_request.number }}-" in CI
+    assert "pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-" in CI
     assert "TEMPLATE_PREFIX" in CI
     assert "--delete-prefix" in CI
     assert "NIM_TEMPLATE_WRITER_USER" in CI
@@ -64,6 +64,6 @@ def test_deploy_syncs_templates_before_rendering():
     assert sync < render
 
 
-def test_lock_is_enforced_only_where_the_namespace_is_real():
-    assert 'CHECK_HASH="${{ steps.prefix.outputs.hash }}"' in CI
-    assert "echo \"hash=1\"" in CI
+def test_the_render_lock_is_checked_in_every_namespace():
+    assert "CHECK_HASH=1" in CI
+    assert "outputs.hash" not in CI

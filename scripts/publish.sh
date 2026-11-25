@@ -49,11 +49,11 @@ if [ -z "$GROUP_UID" ] || [ "$GROUP_UID" = "null" ]; then
 fi
 MEMBERS=$(jq -r --arg n "$GROUP" '[.items[]? | select(.name==$n) | (.instances // []) | length][0] // 0' <<<"$group_doc")
 if [ "$MEMBERS" = "0" ]; then
-  # The list endpoint may omit instances; ask the group itself before deciding
-  # that a partial deployment is complete.
-  instances=$(api "$BASE/instance-groups/$GROUP_UID/instances" || true)
-  if jq -e '.items' >/dev/null 2>&1 <<<"$instances"; then
-    MEMBERS=$(jq -r '.items | length' <<<"$instances")
+  # The list endpoint may omit instances; the group document carries them.
+  # (/instance-groups/<uid>/instances returns HTTP 400 on the real NIM.)
+  doc=$(api "$BASE/instance-groups/$GROUP_UID" || true)
+  if jq -e 'has("instances")' >/dev/null 2>&1 <<<"$doc"; then
+    MEMBERS=$(jq -r '(.instances // []) | length' <<<"$doc")
   fi
 fi
 
