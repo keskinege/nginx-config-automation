@@ -67,3 +67,16 @@ def test_deploy_syncs_templates_before_rendering():
 def test_the_render_lock_is_checked_in_every_namespace():
     assert "CHECK_HASH=1" in CI
     assert "outputs.hash" not in CI
+
+
+def test_a_partial_publish_needs_an_explicit_dispatch_input():
+    import yaml
+
+    for text in (STATIC, TEMPLATE):
+        doc = yaml.safe_load(text)
+        assert doc[True]["workflow_dispatch"]["inputs"]["allow_partial"]["default"] is False
+        publish = next(
+            step for step in doc["jobs"]["publish"]["steps"]
+            if str(step.get("name", "")).startswith("publish")
+        )
+        assert publish["env"]["ALLOW_PARTIAL"] == "${{ inputs.allow_partial && '1' || '0' }}"

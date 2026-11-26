@@ -13,6 +13,11 @@ on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      allow_partial:
+        description: "Accept a publish where some members never report an outcome"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -180,6 +185,7 @@ jobs:
       - name: publish with externalId = commit sha
         if: matrix.group != '-'
         env:
+          ALLOW_PARTIAL: ${{ inputs.allow_partial && '1' || '0' }}
           NIM_URL: ${{ secrets.NIM_URL }}
           NIM_HOST: ${{ secrets.NIM_HOST }}
           NIM_USER: ${{ secrets.NIM_USER }}
