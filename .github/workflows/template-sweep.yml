@@ -18,6 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/setup-yq
+      - name: map the NIM name
+        env:
+          NIM_HOST: ${{ secrets.NIM_HOST }}
+        run: echo "$NIM_HOST manager-server" | sudo tee -a /etc/hosts
       - name: delete pr-* templates older than 12 hours
         env:
           NIM_URL: ${{ secrets.NIM_URL }}
