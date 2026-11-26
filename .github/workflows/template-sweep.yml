@@ -12,7 +12,9 @@ jobs:
   sweep:
     name: delete stale PR template namespaces
     runs-on: ubuntu-latest
-    environment: validate
+    # A scheduled cleanup must not wait for a reviewer. The nim environment is
+    # main-only, so a PR branch cannot reach the writer credential through it.
+    environment: nim
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: ./.github/actions/setup-yq
